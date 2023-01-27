@@ -191,19 +191,14 @@ export class GalleryLightboxComponent implements OnDestroy, OnInit {
   }
 
   public nextImage(): void {
-    if (this.activePhotoId + 1 < this.gridPhotoQL.length) {
-      this.navigateToPhoto(this.activePhotoId + 1);
-    } else {
-      this.navigateToPhoto(0);
-    }
+    this.navigateToPhoto((this.activePhotoId + 1) % this.gridPhotoQL.length);
   }
 
   public prevImage(): void {
-    if (this.controls) {
-      this.controls.pause();
-    }
     if (this.activePhotoId > 0) {
       this.navigateToPhoto(this.activePhotoId - 1);
+    } else {
+      this.navigateToPhoto(this.gridPhotoQL.length - 1);
     }
   }
 
@@ -453,8 +448,8 @@ export class GalleryLightboxComponent implements OnDestroy, OnInit {
         this.calcLightBoxPhotoDimension(this.activePhoto.gridMedia.media)
       );
     }
-    this.navigation.hasPrev = photoIndex > 0;
-    this.navigation.hasNext = photoIndex + 1 < this.gridPhotoQL.length;
+    // this.navigation.hasPrev = photoIndex > 0;
+    // this.navigation.hasNext = (photoIndex + 1) % this.gridPhotoQL.length > 0;
 
     const to = this.activePhoto.getDimension();
 

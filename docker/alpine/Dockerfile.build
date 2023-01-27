@@ -3,14 +3,16 @@
 FROM node:18-alpine3.17 AS builder
 RUN apk add --update-cache --repository https://alpine.global.ssl.fastly.net/alpine/v3.17/community/ \
   python3 build-base sqlite-dev sqlite-libs vips-dev fftw-dev gcc g++ make libc6-compat && ln -snf /usr/bin/python3 /usr/bin/python
-COPY pigallery2-release /app
-WORKDIR /app
-RUN npm install --unsafe-perm
-RUN mkdir -p /app/data/config && \
-    mkdir -p /app/data/db && \
-    mkdir -p /app/data/images && \
-    mkdir -p /app/data/tmp
-
+COPY . /build
+WORKDIR /build
+RUN npm install --unsafe-perm \
+    && mkdir -p /build/release/data/config \
+    && mkdir -p /build/release/data/db \
+    && mkdir -p /build/release/data/images \
+    && mkdir -p /build/release/data/tmp \
+    && npm run create-release -- --skip-opt-packages=ffmpeg-static,ffprobe-static --force-opt-packages \
+    && cd /build/release \
+    && npm install --unsafe-perm
 
 #-----------------MAIN--------------------
 #-----------------------------------------
@@ -27,7 +29,8 @@ ENV NODE_ENV=production \
 EXPOSE 80
 RUN apk add --update-cache --repository https://alpine.global.ssl.fastly.net/alpine/v3.17/community/ \
     vips vips-cpp ffmpeg
-COPY --from=builder /app /app
+COPY --from=builder /build/release /app
+RUN ["du", "-sh", "/app"]
 VOLUME ["/app/data/config", "/app/data/db", "/app/data/images", "/app/data/tmp"]
 
 # Run build time diagnostics to make sure the app would work after build is finished

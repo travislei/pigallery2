@@ -45,7 +45,7 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
   public zoom = 1;
   public playBackState: PlayBackStates = PlayBackStates.Paused;
   public PlayBackStates = PlayBackStates;
-  public playBackDurations = [2, 5, 10, 15, 20, 30, 60];
+  public playBackDurations = [1, 2, 5, 10, 15, 20, 30, 60];
   public selectedSlideshowSpeed: number = null;
   public controllersDimmed = false;
 
@@ -212,14 +212,10 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
   onKeyPress(event: KeyboardEvent): void {
     switch (event.key) {
       case 'ArrowLeft':
-        if (this.navigation.hasPrev) {
-          this.previousPhoto.emit();
-        }
+        this.previousPhoto.emit();
         break;
       case 'ArrowRight':
-        if (this.navigation.hasNext) {
-          this.nextMediaManuallyTriggered();
-        }
+        this.nextMediaManuallyTriggered();
         break;
       case 'i':
       case 'I':
@@ -271,10 +267,10 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
   }
 
   private showNextMedia = () => {
-    if (this.mediaElement.imageLoadFinished.this === false ||
-      this.mediaElement.imageLoadFinished.next === false) {
-      return;
-    }
+    // if (this.mediaElement.imageLoadFinished.this === false ||
+    //   this.mediaElement.imageLoadFinished.next === false) {
+    //   return;
+    // }
     // do not skip video if its playing
     if (
       this.activePhoto &&
