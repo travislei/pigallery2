@@ -1,8 +1,8 @@
 <app-gallery-lightbox #lightbox></app-gallery-lightbox>
-<app-frame>
+<app-frame [showSearch]="showSearchBar" [showShare]="showShare">
 
   <ng-container navbar>
-    <li class="nav-item navbar-text"  *ngIf="countDown">
+    <li class="nav-item navbar-text" *ngIf="countDown">
       <span>
         <ng-container i18n>Link availability</ng-container>
         : {{countDown.day}}
@@ -11,12 +11,6 @@
         {{("0" + countDown.hour).slice(-2)}}:{{("0" + countDown.minute).slice(-2)}}
         :{{("0" + countDown.second).slice(-2)}}
       </span>
-    </li>
-    <li  class="nav-item" *ngIf="showSearchBar">
-      <app-gallery-search></app-gallery-search>
-    </li>
-    <li class="nav-item"  *ngIf="showShare">
-      <app-gallery-share></app-gallery-share>
     </li>
   </ng-container>
 
@@ -27,6 +21,7 @@
   </ng-container>
 
 
+  <app-gallery-navbar navbar-appendix></app-gallery-navbar>
   <div body class="container-fluid">
     <ng-container *ngIf="ContentWrapper.error">
       <div class="alert alert-danger" role="alert">
@@ -40,43 +35,34 @@
         Too many results to show. Refine your search.
       </div>
 
-      <!-- Its safe to hand over both as only one should have a value (search result or dir listing)-->
-      <app-gallery-navbar></app-gallery-navbar>
-
 
       <app-gallery-directories class="directories"
                                [directories]="directoryContent?.directories || []"></app-gallery-directories>
 
-      <div class="blog-map-row">
-        <div class="blog-wrapper"
-             [style.width]="blogOpen ?  '100%' : 'calc(100% - 100px)'"
-             *ngIf="config.MetaFile.markdown  && directoryContent?.metaFile && (directoryContent.metaFile | mdFiles).length>0">
-          <app-gallery-blog [collapsed]="!blogOpen"
-                            [mdFiles]="directoryContent.metaFile | mdFiles"></app-gallery-blog>
-
-
-          <button class="btn btn-blog-details" (click)="blogOpen=!blogOpen"><span
-            class="oi oi-chevron-{{blogOpen ? 'top' : 'bottom'}}"></span>
-          </button>
-        </div>
+      <div class="blog-map-row" *ngIf="ShowMarkDown || ShowMap">
+        <app-gallery-blog
+          [style.width]="blogOpen ?  '100%' : 'calc(100% - 100px)'"
+          *ngIf="ShowMarkDown"
+          [(open)]="blogOpen"></app-gallery-blog>
         <app-gallery-map
-          *ngIf="(isPhotoWithLocation || (directoryContent?.metaFile | gpxFiles)?.length > 0) && mapEnabled"
-          [photos]="directoryContent?.media | photosOnly"
+          class="rounded"
+          [class.rounded-start-0]="ShowMarkDown"
+          *ngIf="ShowMap"
+          [photos]="directoryContent?.mediaGroups | photosOnly"
           [gpxFiles]="directoryContent?.metaFile | gpxFiles"></app-gallery-map>
       </div>
-      <app-gallery-grid [media]="directoryContent?.media"
+      <app-gallery-grid [mediaGroups]="directoryContent?.mediaGroups"
                         [lightbox]="lightbox"></app-gallery-grid>
 
     </ng-container>
   </div>
 
-  <div body class="container"
-       style="width: 100%; padding:0"
+  <div body class="container spinner-container"
        *ngIf="(!ContentWrapper.directory ||
         ContentWrapper.directory.isPartial == true)
        && !ContentWrapper.searchResult
        && !ContentWrapper.error">
-    <div class="spinner">
+    <div class="spinner rounded">
 
     </div>
   </div>

@@ -1,8 +1,5 @@
-import {ConfigTemplateEntry} from '../../../../common/entities/job/JobDTO';
 import {Job} from './Job';
 import * as path from 'path';
-import {DiskManager} from '../../DiskManger';
-import {DirectoryScanSettings} from '../../threading/DiskMangerWorker';
 import {Logger} from '../../../Logger';
 import {Config} from '../../../../common/config/private/Config';
 import {FileDTO} from '../../../../common/entities/FileDTO';
@@ -14,6 +11,8 @@ import {backendTexts} from '../../../../common/BackendTexts';
 import {ProjectPath} from '../../../ProjectPath';
 import {FileEntity} from '../../database/enitites/FileEntity';
 import {DirectoryBaseDTO, DirectoryDTOUtils} from '../../../../common/entities/DirectoryDTO';
+import {DirectoryScanSettings, DiskManager} from '../../fileaccess/DiskManager';
+import {DynamicConfig} from '../../../../common/entities/DynamicConfig';
 
 const LOG_TAG = '[FileJob]';
 
@@ -21,7 +20,7 @@ const LOG_TAG = '[FileJob]';
  * Abstract class for thumbnail creation, file deleting etc.
  */
 export abstract class FileJob<S extends { indexedOnly?: boolean } = { indexedOnly?: boolean }> extends Job<S> {
-  public readonly ConfigTemplate: ConfigTemplateEntry[] = [];
+  public readonly ConfigTemplate: DynamicConfig[] = [];
   directoryQueue: string[] = [];
   fileQueue: string[] = [];
   DBProcessing = {
@@ -76,51 +75,49 @@ export abstract class FileJob<S extends { indexedOnly?: boolean } = { indexedOnl
       return false;
     }
 
-    const processOneFile = async () => {
-      const filePath = this.fileQueue.shift();
-      try {
-        if ((await this.shouldProcess(filePath)) === true) {
-          this.Progress.Processed++;
-          this.Progress.log('processing: ' + filePath);
-          await this.processFile(filePath);
-        } else {
-          this.Progress.log('skipping: ' + filePath);
-          this.Progress.Skipped++;
-        }
-      } catch (e) {
-        console.error(e);
-        Logger.error(
-          LOG_TAG,
-          'Error during processing file:' + filePath + ', ' + e.toString()
-        );
-        this.Progress.log(
-          'Error during processing file:' + filePath + ', ' + e.toString()
-        );
-      }
-    };
 
     if (!this.config.indexedOnly) {
       if (this.directoryQueue.length > 0) {
         await this.loadADirectoryFromDisk();
+        return true;
       } else if (this.fileQueue.length > 0) {
         this.Progress.Left = this.fileQueue.length;
-        await processOneFile();
       }
     } else {
       if (!this.DBProcessing.initiated) {
         this.Progress.log('Counting files from db');
         Logger.silly(LOG_TAG, 'Counting files from db');
         this.Progress.All = await this.countMediaFromDB();
+        this.Progress.log('Found:' + this.Progress.All);
         Logger.silly(LOG_TAG, 'Found:' + this.Progress.All);
         this.DBProcessing.initiated = true;
         return true;
       }
       if (this.fileQueue.length === 0) {
         await this.loadMediaFilesFromDB();
-      } else {
-        this.Progress.Left = this.fileQueue.length;
-        await processOneFile();
+        return true;
       }
+    }
+
+    const filePath = this.fileQueue.shift();
+    try {
+      if ((await this.shouldProcess(filePath)) === true) {
+        this.Progress.Processed++;
+        this.Progress.log('processing: ' + filePath);
+        await this.processFile(filePath);
+      } else {
+        this.Progress.log('skipping: ' + filePath);
+        this.Progress.Skipped++;
+      }
+    } catch (e) {
+      console.error(e);
+      Logger.error(
+        LOG_TAG,
+        'Error during processing file:' + filePath + ', ' + e.toString()
+      );
+      this.Progress.log(
+        'Error during processing file:' + filePath + ', ' + e.toString()
+      );
     }
 
     return true;
@@ -139,6 +136,11 @@ export abstract class FileJob<S extends { indexedOnly?: boolean } = { indexedOnl
     DirectoryDTOUtils.addReferences(scanned as DirectoryBaseDTO);
     if (this.scanFilter.noPhoto !== true || this.scanFilter.noVideo !== true) {
       const scannedAndFiltered = await this.filterMediaFiles(scanned.media);
+      const skipped = scanned.media.length - scannedAndFiltered.length;
+      if (skipped > 0) {
+        this.Progress.log('batch skipping: ' + skipped);
+        this.Progress.Skipped += skipped;
+      }
       for (const item of scannedAndFiltered) {
         this.fileQueue.push(
           path.join(
@@ -152,6 +154,11 @@ export abstract class FileJob<S extends { indexedOnly?: boolean } = { indexedOnl
     }
     if (this.scanFilter.noMetaFile !== true) {
       const scannedAndFiltered = await this.filterMetaFiles(scanned.metaFile);
+      const skipped = scanned.metaFile.length - scannedAndFiltered.length;
+      if (skipped > 0) {
+        this.Progress.log('batch skipping: ' + skipped);
+        this.Progress.Skipped += skipped;
+      }
       for (const item of scannedAndFiltered) {
         this.fileQueue.push(
           path.join(
@@ -204,6 +211,11 @@ export abstract class FileJob<S extends { indexedOnly?: boolean } = { indexedOnl
       hasMoreFile.media = result.length > 0;
       this.DBProcessing.mediaLoaded += result.length;
       const scannedAndFiltered = await this.filterMediaFiles(result);
+      const skipped = result.length - scannedAndFiltered.length;
+      if (skipped > 0) {
+        this.Progress.log('batch skipping: ' + skipped);
+        this.Progress.Skipped += skipped;
+      }
       for (const item of scannedAndFiltered) {
         this.fileQueue.push(
           path.join(
@@ -230,6 +242,11 @@ export abstract class FileJob<S extends { indexedOnly?: boolean } = { indexedOnl
       hasMoreFile.metafile = result.length > 0;
       this.DBProcessing.mediaLoaded += result.length;
       const scannedAndFiltered = await this.filterMetaFiles(result);
+      const skipped = result.length - scannedAndFiltered.length;
+      if (skipped > 0) {
+        this.Progress.log('batch skipping: ' + skipped);
+        this.Progress.Skipped += skipped;
+      }
       for (const item of scannedAndFiltered) {
         this.fileQueue.push(
           path.join(
@@ -267,16 +284,16 @@ export abstract class FileJob<S extends { indexedOnly?: boolean } = { indexedOnl
         .getRepository(usedEntity)
         .createQueryBuilder('media')
         .getCount();
-
-      if (!this.scanFilter.noMetaFile) {
-
-        count += await connection
-          .getRepository(FileEntity)
-          .createQueryBuilder('file')
-          .getCount();
-
-      }
-      return count;
     }
+    if (!this.scanFilter.noMetaFile) {
+
+      count += await connection
+        .getRepository(FileEntity)
+        .createQueryBuilder('file')
+        .getCount();
+
+    }
+    return count;
+
   }
 }

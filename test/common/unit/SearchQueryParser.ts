@@ -1,10 +1,13 @@
 import {expect} from 'chai';
 import {
   ANDSearchQuery,
+  DatePatternFrequency,
+  DatePatternSearch,
   DistanceSearch,
   FromDateSearch,
+  MaxPersonCountSearch,
   MaxRatingSearch,
-  MaxResolutionSearch,
+  MaxResolutionSearch, MinPersonCountSearch,
   MinRatingSearch,
   MinResolutionSearch,
   OrientationSearch,
@@ -96,6 +99,12 @@ describe('SearchQueryParser', () => {
       check({type: SearchQueryTypes.min_rating, value: 10, negate: true} as MinRatingSearch);
       check({type: SearchQueryTypes.max_rating, value: 1, negate: true} as MaxRatingSearch);
     });
+    it('Person count search', () => {
+      check({type: SearchQueryTypes.min_person_count, value: 10} as MinPersonCountSearch);
+      check({type: SearchQueryTypes.max_person_count, value: 1} as MaxPersonCountSearch);
+      check({type: SearchQueryTypes.min_person_count, value: 10, negate: true} as MinPersonCountSearch);
+      check({type: SearchQueryTypes.max_person_count, value: 1, negate: true} as MaxPersonCountSearch);
+    });
     it('Resolution search', () => {
       check({type: SearchQueryTypes.min_resolution, value: 10} as MinResolutionSearch);
       check({type: SearchQueryTypes.max_resolution, value: 5} as MaxResolutionSearch);
@@ -109,6 +118,53 @@ describe('SearchQueryParser', () => {
     it('OrientationSearch search', () => {
       check({type: SearchQueryTypes.orientation, landscape: true} as OrientationSearch);
       check({type: SearchQueryTypes.orientation, landscape: false} as OrientationSearch);
+    });
+    it('Date patter search', () => {
+      for (let i = 0; i <= 10; ++i) {
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.every_week
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.every_month
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.every_year
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.days_ago,
+          agoNumber: 0
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.days_ago,
+          agoNumber: 1
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.weeks_ago,
+          agoNumber: 1
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.months_ago,
+          agoNumber: 1
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.years_ago,
+          agoNumber: 1
+        } as DatePatternSearch);
+        check({
+          type: SearchQueryTypes.date_pattern, daysLength: i,
+          frequency: DatePatternFrequency.years_ago,
+          agoNumber: 1,
+          negate: true
+        } as DatePatternSearch);
+      }
     });
     it('Default logical operator should be AND', () => {
 

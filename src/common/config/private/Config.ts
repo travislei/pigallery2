@@ -6,13 +6,18 @@ import {ConfigClass, ConfigClassBuilder} from 'typeconfig/node';
 import {IConfigClass} from 'typeconfig/common';
 import {PasswordHelper} from '../../../backend/model/PasswordHelper';
 import {TAGS} from '../public/ClientConfig';
+import {NotificationManager} from '../../../backend/model/NotifocationManager';
 
 declare const process: any;
-
 const upTime = new Date().toISOString();
+// TODO: Refactor Config to be injectable globally.
+// This is a bad habit to let the Config know if its in a testing env.
+const isTesting = process.env['NODE_ENV'] == true || ['afterEach', 'after', 'beforeEach', 'before', 'describe', 'it']
+  .every((fn) => (global as any)[fn] instanceof Function);
 
 @ConfigClass<IConfigClass<TAGS> & ServerConfig>({
-  configPath: path.join(__dirname, './../../../../config.json'),
+  configPath: path.join(__dirname, !isTesting ? './../../../../config.json' : './../../../../test/backend/tmp/config.json'),
+  crateConfigPathIfNotExists: isTesting,
   saveIfNotExist: true,
   attachDescription: true,
   enumsAsString: true,
@@ -49,6 +54,9 @@ const upTime = new Date().toISOString();
         uc.encrypted = !!uc.encryptedPassword;
         changed = true;
       }
+      if (!uc.encrypted && !uc.password) {
+        throw new Error('Password error for enforced user: ' + uc.name);
+      }
     }
     if (changed) {
       config.saveSync();
@@ -77,16 +85,17 @@ export class PrivateConfigClass extends ServerConfig {
     this.Environment.isDocker = !!process.env.PI_DOCKER;
   }
 
-  async original(): Promise<PrivateConfigClass & IConfigClass> {
-    const pc = ConfigClassBuilder.attachPrivateInterface(new PrivateConfigClass());
-    await pc.load();
-    return pc;
-  }
 
 }
 
 export const Config = ConfigClassBuilder.attachInterface(
   new PrivateConfigClass()
 );
-Config.loadSync();
-
+try {
+  Config.loadSync();
+} catch (e) {
+  console.error('Error during loading config. Reverting to defaults.');
+  console.error('This is most likely due to: 1) you added a bad configuration in the server.json OR 2) The configuration changed in the latest release.');
+  console.error(e);
+  NotificationManager.error('Cant load config. Reverting to default. This is most likely due to: 1) you added a bad configuration in the server.json OR 2) The configuration changed in the latest release.', (e.toString ? e.toString() : JSON.stringify(e)));
+}

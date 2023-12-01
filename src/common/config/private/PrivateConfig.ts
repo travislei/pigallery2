@@ -11,6 +11,7 @@ import {
 } from '../../entities/job/JobScheduleDTO';
 import {
   ClientConfig,
+  ClientExtensionsConfig,
   ClientGPXCompressingConfig,
   ClientMediaConfig,
   ClientMetaFileConfig,
@@ -18,18 +19,20 @@ import {
   ClientPhotoConvertingConfig,
   ClientServiceConfig,
   ClientSharingConfig,
+  ClientSortingConfig,
   ClientThumbnailConfig,
   ClientUserConfig,
   ClientVideoConfig,
   ConfigPriority,
   TAGS
 } from '../public/ClientConfig';
-import {SubConfigClass} from 'typeconfig/src/decorators/class/SubConfigClass';
-import {ConfigProperty} from 'typeconfig/src/decorators/property/ConfigPropoerty';
+import {ConfigProperty, SubConfigClass} from 'typeconfig/common';
 import {DefaultsJobs} from '../../entities/job/JobDTO';
 import {SearchQueryDTO, SearchQueryTypes, TextSearch,} from '../../entities/SearchQueryDTO';
-import {SortingMethods} from '../../entities/SortingMethods';
+import {SortByTypes} from '../../entities/SortingMethods';
 import {UserRoles} from '../../entities/UserDTO';
+import {MediaPickDTO} from '../../entities/MediaPickDTO';
+import {MessagingConfig} from './MessagingConfig';
 
 declare let $localize: (s: TemplateStringsArray) => string;
 
@@ -61,9 +64,12 @@ export enum SQLLogLevel {
 }
 
 export enum ReIndexingSensitivity {
-  low = 1,
-  medium = 2,
-  high = 3,
+  // Order is important. It also used to do relative comparison.
+  // Keep space between items for future
+  never = 10,
+  low = 20,
+  medium = 30,
+  high = 40,
 }
 
 export enum FFmpegPresets {
@@ -181,6 +187,7 @@ export class UserConfig {
   role: UserRoles = UserRoles.User;
 
   @ConfigProperty<string, ServerConfig, TAGS>({
+    type: 'string',
     tags:
       {
         name: $localize`Password`,
@@ -190,6 +197,7 @@ export class UserConfig {
     description: $localize`Unencrypted, temporary password. App will encrypt it and delete this.`
   })
   password: string;
+
   @ConfigProperty({
     tags:
       {
@@ -295,7 +303,7 @@ export class ServerThumbnailConfig extends ClientThumbnailConfig {
   @ConfigProperty({
     tags:
       {
-        name: $localize`Enforced users`,
+        name: $localize`High quality resampling`,
         priority: ConfigPriority.underTheHood
       },
     description: $localize`if true, 'lanczos3' will used to scale photos, otherwise faster but lower quality 'nearest'.`
@@ -312,15 +320,36 @@ export class ServerThumbnailConfig extends ClientThumbnailConfig {
   })
   quality = 80;
   @ConfigProperty({
-    type: 'ratio',
+    type: 'boolean',
+    tags:
+      {
+        name: $localize`Use chroma subsampling`,
+        priority: ConfigPriority.underTheHood
+      },
+    description: $localize`Use high quality chroma subsampling in webp. See: https://sharp.pixelplumbing.com/api-output#webp.`
+  })
+  smartSubsample = true;
+
+  @ConfigProperty({
+    type: 'float',
     tags:
       {
         name: $localize`Person face margin`,
         priority: ConfigPriority.underTheHood
       },
-    description: $localize`Person face size ratio on the face thumbnail.`
+    description: $localize`This ratio of the face bounding box will be added to the face as a margin. Higher number add more margin.`
   })
-  personFaceMargin: number = 0.6; // in ration [0-1]
+  personFaceMargin: number = 0.7; // in ratio [0-1]
+  @ConfigProperty({
+    type: 'boolean',
+    tags:
+      {
+        name: $localize`Keep Gif animation`,
+        priority: ConfigPriority.underTheHood
+      },
+    description: $localize`Converts Gif to animated webp.`
+  })
+  animateGif = true;
 }
 
 @SubConfigClass({softReadonly: true})
@@ -344,9 +373,21 @@ export class ServerGPXCompressingConfig extends ClientGPXCompressingConfig {
         unit: 'm',
         uiDisabled: (sc: ServerGPXCompressingConfig, c: ServerConfig) => !c.Map.enabled || !sc.enabled || !c.MetaFile.gpx
       } as TAGS,
-    description: $localize`Filters out entry that are closer than this in meters.`
+    description: $localize`Filters out entry that are closer than this to each other in meters.`
   })
   minDistance: number = 5;
+  @ConfigProperty({
+    type: 'unsignedInt',
+    tags:
+      {
+        name: $localize`Max middle point deviance`,
+        priority: ConfigPriority.underTheHood,
+        unit: 'm',
+        uiDisabled: (sc: ServerGPXCompressingConfig, c: ServerConfig) => !c.Map.enabled || !sc.enabled || !c.MetaFile.gpx
+      } as TAGS,
+    description: $localize`Filters out entry that would fall on the line if we would just connect the previous and the next points. This setting sets the sensitivity for that (higher number, more points are filtered).`
+  })
+  maxMiddleDeviance: number = 5;
   @ConfigProperty({
     type: 'unsignedInt',
     tags:
@@ -370,6 +411,9 @@ export class ServerMetaFileConfig extends ClientMetaFileConfig {
         priority: ConfigPriority.advanced,
         uiJob: [{
           job: DefaultsJobs[DefaultsJobs['GPX Compression']],
+          relevant: (c) => c.MetaFile.GPXCompressing.enabled
+        }, {
+          job: DefaultsJobs[DefaultsJobs['Delete Compressed GPX']],
           relevant: (c) => c.MetaFile.GPXCompressing.enabled
         }]
       } as TAGS
@@ -413,7 +457,7 @@ export class ServerIndexingConfig {
         name: $localize`Folder reindexing sensitivity`,
         priority: ConfigPriority.advanced
       },
-    description: $localize`Set the reindexing sensitivity. High value check the folders for change more often.`
+    description: $localize`Set the reindexing sensitivity. High value check the folders for change more often.  Setting to never only indexes if never indexed or explicit running the Indexing Job.`
   })
   reIndexingSensitivity: ReIndexingSensitivity = ReIndexingSensitivity.low;
   @ConfigProperty({
@@ -442,30 +486,6 @@ export class ServerIndexingConfig {
     description: $localize`Files that mark a folder to be excluded from indexing. Any folder that contains a file with this name will be excluded from indexing.`,
   })
   excludeFileList: string[] = [];
-}
-
-@SubConfigClass({softReadonly: true})
-export class ServerThreadingConfig {
-  @ConfigProperty({
-    tags:
-      {
-        name: $localize`Threading`,
-        uiResetNeeded: {server: true},
-        priority: ConfigPriority.underTheHood
-      },
-    description: $localize`Runs directory scanning and thumbnail generation in a different thread.`
-  })
-  enabled: boolean = true;
-  @ConfigProperty({
-    tags:
-      {
-        name: $localize`Thumbnail threads`,
-        uiResetNeeded: {server: true},
-        priority: ConfigPriority.underTheHood
-      },
-    description: $localize`Number of threads that are used to generate thumbnails. If 0, number of 'CPU cores -1' threads will be used.`,
-  })
-  thumbnailThreads: number = 0; // if zero-> CPU count -1
 }
 
 @SubConfigClass({softReadonly: true})
@@ -556,7 +576,7 @@ export class JobScheduleConfig implements JobScheduleDTO {
   @ConfigProperty()
   jobName: string;
   @ConfigProperty()
-  config: Record<string, string | number | string[] | number[]> = {};
+  config: Record<string, string | number | string[] | number[] | MediaPickDTO[]> = {};
   @ConfigProperty()
   allowParallelRun: boolean = false;
   @ConfigProperty({
@@ -638,15 +658,15 @@ export class ServerJobConfig {
       {indexChangesOnly: true} // set config explicitly, so it is not undefined on the UI
     ),
     new JobScheduleConfig(
-      DefaultsJobs[DefaultsJobs['Preview Filling']],
-      DefaultsJobs[DefaultsJobs['Preview Filling']],
+      DefaultsJobs[DefaultsJobs['Album Cover Filling']],
+      DefaultsJobs[DefaultsJobs['Album Cover Filling']],
       new AfterJobTriggerConfig(DefaultsJobs[DefaultsJobs['Indexing']]),
       {}
     ),
     new JobScheduleConfig(
       DefaultsJobs[DefaultsJobs['Thumbnail Generation']],
       DefaultsJobs[DefaultsJobs['Thumbnail Generation']],
-      new AfterJobTriggerConfig(DefaultsJobs[DefaultsJobs['Preview Filling']]),
+      new AfterJobTriggerConfig(DefaultsJobs[DefaultsJobs['Album Cover Filling']]),
       {sizes: [240], indexedOnly: true}
     ),
     new JobScheduleConfig(
@@ -766,14 +786,28 @@ export class VideoTranscodingConfig {
   @ConfigProperty({
     arrayType: 'string',
     tags: {
-      name: $localize`Custom Options`,
+      name: $localize`Custom Output Options`,
       priority: ConfigPriority.underTheHood,
-      hint: '-pass 2; -minrate 1M; -maxrate 1M; -bufsize 2M',
+      hint: '-pass 2;-minrate 1M;-maxrate 1M;-bufsize 2M',
       uiAllowSpaces: true
     },
-    description: $localize`It will be sent to ffmpeg as it is, as custom options.`,
+    description: $localize`It will be sent to ffmpeg as it is, as custom output options.`,
   })
-  customOptions: string[] = [];
+  customOutputOptions: string[] = [];
+
+  @ConfigProperty({
+    arrayType: 'string',
+    tags: {
+      name: $localize`Custom Input Options`,
+      priority: ConfigPriority.underTheHood,
+      hint: '-option1; -option2 param2; -option3; -option4 param4',
+      githubIssue: 592,
+      uiAllowSpaces: true
+    } as TAGS,
+    description: $localize`It will be sent to ffmpeg as it is, as custom input options.`,
+  })
+  customInputOptions: string[] = [];
+
 }
 
 @SubConfigClass({softReadonly: true})
@@ -829,11 +863,11 @@ export class ServerPhotoConfig extends ClientPhotoConfig {
 }
 
 @SubConfigClass({softReadonly: true})
-export class ServerPreviewConfig {
+export class ServerAlbumCoverConfig {
   @ConfigProperty({
     type: 'object',
     tags: {
-      name: $localize`Preview Filter query`,
+      name: $localize`Cover Filter query`,
       uiResetNeeded: {db: true},
       priority: ConfigPriority.advanced,
       uiType: 'SearchQuery'
@@ -845,23 +879,25 @@ export class ServerPreviewConfig {
     text: '',
   } as TextSearch;
   @ConfigProperty({
-    arrayType: SortingMethods,
+    arrayType: ClientSortingConfig,
     tags: {
-      name: $localize`Preview Sorting`,
+      name: $localize`Cover Sorting`,
       uiResetNeeded: {db: true},
       priority: ConfigPriority.advanced
     },
-    description: $localize`If multiple preview is available sorts them by these methods and selects the first one.`,
+    description: $localize`If multiple cover is available sorts them by these methods and selects the first one.`,
   })
-  Sorting: SortingMethods[] = [
-    SortingMethods.descRating,
-    SortingMethods.descDate,
+  Sorting: ClientSortingConfig[] = [
+    new ClientSortingConfig(SortByTypes.Rating, false),
+    new ClientSortingConfig(SortByTypes.Date, false),
+    new ClientSortingConfig(SortByTypes.PersonCount, false)
   ];
 }
 
 @SubConfigClass({softReadonly: true})
 export class ServerMediaConfig extends ClientMediaConfig {
   @ConfigProperty({
+
     tags: {
       name: $localize`Images folder`,
       priority: ConfigPriority.basic,
@@ -899,7 +935,7 @@ export class ServerMediaConfig extends ClientMediaConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Video`,
-      uiIcon: 'video',
+      uiIcon: 'ionVideocamOutline',
       priority: ConfigPriority.advanced,
       uiJob: [
         {
@@ -913,7 +949,7 @@ export class ServerMediaConfig extends ClientMediaConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Photo`,
-      uiIcon: 'camera-slr',
+      uiIcon: 'ionCameraOutline',
       priority: ConfigPriority.advanced,
       uiJob: [
         {
@@ -926,7 +962,7 @@ export class ServerMediaConfig extends ClientMediaConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Thumbnail`,
-      uiIcon: 'grid-three-up',
+      uiIcon: 'ionImageOutline',
       priority: ConfigPriority.advanced,
       uiJob: [{job: DefaultsJobs[DefaultsJobs['Thumbnail Generation']]}]
     } as TAGS
@@ -981,19 +1017,41 @@ export class ServerServiceConfig extends ClientServiceConfig {
 
   @ConfigProperty({
     tags: {
-      name: $localize`Threading`,
-      priority: ConfigPriority.underTheHood,
-    }
-  })
-  Threading: ServerThreadingConfig = new ServerThreadingConfig();
-
-  @ConfigProperty({
-    tags: {
       name: $localize`Logs`,
       priority: ConfigPriority.advanced,
     }
   })
   Log: ServerLogConfig = new ServerLogConfig();
+}
+
+
+@SubConfigClass<TAGS>({softReadonly: true})
+export class ServerExtensionsConfig extends ClientExtensionsConfig {
+
+  @ConfigProperty({
+    tags: {
+      name: $localize`Extension folder`,
+      priority: ConfigPriority.underTheHood,
+      dockerSensitive: true
+    },
+    description: $localize`Folder where the app stores the extensions. Extensions live in their sub-folders.`,
+  })
+  folder: string = 'extensions';
+
+  @ConfigProperty({volatile: true})
+  list: string[] = [];
+
+  @ConfigProperty({type: 'object'})
+  configs: Record<string, unknown> = {};
+
+  @ConfigProperty({
+    tags: {
+      name: $localize`Clean up unused tables`,
+      priority: ConfigPriority.underTheHood,
+    },
+    description: $localize`Automatically removes all tables from the DB that are not used anymore.`,
+  })
+  cleanUpUnusedTables: boolean = true;
 }
 
 @SubConfigClass({softReadonly: true})
@@ -1010,6 +1068,7 @@ export class ServerEnvironmentConfig {
   isDocker: boolean | undefined;
 }
 
+
 @SubConfigClass<TAGS>({softReadonly: true})
 export class ServerConfig extends ClientConfig {
 
@@ -1019,7 +1078,7 @@ export class ServerConfig extends ClientConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Server`,
-      uiIcon: 'cog'
+      uiIcon: 'ionCloudOutline'
     } as TAGS,
   })
   Server: ServerServiceConfig = new ServerServiceConfig();
@@ -1027,7 +1086,7 @@ export class ServerConfig extends ClientConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Database`,
-      uiIcon: 'list'
+      uiIcon: 'ionServerOutline'
     } as TAGS
   })
   Database: ServerDataBaseConfig = new ServerDataBaseConfig();
@@ -1035,7 +1094,7 @@ export class ServerConfig extends ClientConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Users`,
-      uiIcon: 'person'
+      uiIcon: 'ionPersonOutline'
     } as TAGS,
   })
   Users: ServerUserConfig = new ServerUserConfig();
@@ -1043,7 +1102,7 @@ export class ServerConfig extends ClientConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Indexing`,
-      uiIcon: 'pie-chart',
+      uiIcon: 'ionFileTrayFullOutline',
       uiJob: [
         {
           job: DefaultsJobs[DefaultsJobs.Indexing],
@@ -1059,7 +1118,7 @@ export class ServerConfig extends ClientConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Media`,
-      uiIcon: 'camera-slr'
+      uiIcon: 'ionImagesOutline'
     } as TAGS,
   })
   Media: ServerMediaConfig = new ServerMediaConfig();
@@ -1067,30 +1126,32 @@ export class ServerConfig extends ClientConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Meta file`,
-      uiIcon: 'file'
+      uiIcon: 'ionDocumentOutline'
     } as TAGS,
   })
   MetaFile: ServerMetaFileConfig = new ServerMetaFileConfig();
 
   @ConfigProperty({
     tags: {
-      name: $localize`Preview`,
-      uiIcon: 'image',
+      name: $localize`Album cover`,
+      uiIcon: 'ionImageOutline',
+      githubIssue: 679,
       uiJob: [
         {
-          job: DefaultsJobs[DefaultsJobs['Preview Filling']],
+          job: DefaultsJobs[DefaultsJobs['Album Cover Filling']],
         }, {
-          job: DefaultsJobs[DefaultsJobs['Preview Reset']],
+          job: DefaultsJobs[DefaultsJobs['Album Cover Reset']],
           hideProgress: true
         }]
-    } as TAGS
+    } as TAGS,
+    description: $localize`Specify a search query and sorting that the app can use to pick the best photo for an album and folder cover. There is no way to manually pick folder and album cover in the app. You can tag some of your photos with 'cover' and set that as search query or rate them to 5 and set sorting to descending by rating.`
   })
-  Preview: ServerPreviewConfig = new ServerPreviewConfig();
+  AlbumCover: ServerAlbumCoverConfig = new ServerAlbumCoverConfig();
 
   @ConfigProperty({
     tags: {
       name: $localize`Sharing`,
-      uiIcon: 'share'
+      uiIcon: 'ionShareSocialOutline'
     } as TAGS,
   })
   Sharing: ServerSharingConfig = new ServerSharingConfig();
@@ -1098,15 +1159,34 @@ export class ServerConfig extends ClientConfig {
   @ConfigProperty({
     tags: {
       name: $localize`Duplicates`,
-      uiIcon: 'layers'
+      uiIcon: 'ionCopyOutline'
     } as TAGS
   })
   Duplicates: ServerDuplicatesConfig = new ServerDuplicatesConfig();
 
   @ConfigProperty({
     tags: {
+      name: $localize`Messaging`,
+      uiIcon: 'ionChatboxOutline',
+      githubIssue: 683
+    } as TAGS,
+    description: $localize`The App can send messages (like photos on the same day a year ago. aka: "Top Pick"). Here you can configure the delivery method.`
+  })
+  Messaging: MessagingConfig = new MessagingConfig();
+
+
+  @ConfigProperty({
+    tags: {
+      name: $localize`Extensions`,
+      uiIcon: 'ionCloudOutline'
+    } as TAGS,
+  })
+  Extensions: ServerExtensionsConfig = new ServerExtensionsConfig();
+
+  @ConfigProperty({
+    tags: {
       name: $localize`Jobs`,
-      uiIcon: 'project'
+      uiIcon: 'ionPlayOutline'
     } as TAGS
   })
   Jobs: ServerJobConfig = new ServerJobConfig();

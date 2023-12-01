@@ -9,7 +9,8 @@ import {MapService} from '../../map/map.service';
 import {SearchQueryTypes, TextSearch, TextSearchQueryMatchTypes,} from '../../../../../../common/entities/SearchQueryDTO';
 import {AuthenticationService} from '../../../../model/network/authentication.service';
 import {LatLngLiteral, marker, Marker, TileLayer, tileLayer} from 'leaflet';
-import {ContentService} from '../../content.service';
+import {ThemeService} from '../../../../model/theme.service';
+import {ContentLoaderService} from '../../contentLoader.service';
 
 @Component({
   selector: 'app-info-panel',
@@ -29,31 +30,37 @@ export class InfoPanelLightboxComponent implements OnInit, OnChanges {
   public markerLayer: Marker[] = [];
 
   constructor(
-    public queryService: QueryService,
-    public galleryService: ContentService,
-    public mapService: MapService,
-    private authService: AuthenticationService
+      public queryService: QueryService,
+      public contentLoaderService: ContentLoaderService,
+      public mapService: MapService,
+      private authService: AuthenticationService,
+      private themeService: ThemeService
   ) {
     this.mapEnabled = Config.Map.enabled;
-    this.searchEnabled =
-      Config.Search.enabled && this.authService.canSearch();
-    this.baseLayer = tileLayer(mapService.MapLayer, {
-      attribution: mapService.ShortAttributions,
-    });
+    this.searchEnabled = this.authService.canSearch();
+    if (this.themeService.darkMode.value) {
+      this.baseLayer = tileLayer(mapService.DarkMapLayer.url, {
+        attribution: mapService.ShortAttributions,
+      });
+    } else {
+      this.baseLayer = tileLayer(mapService.MapLayer.url, {
+        attribution: mapService.ShortAttributions,
+      });
+    }
   }
 
   get FullPath(): string {
     return Utils.concatUrls(
-      this.media.directory.path,
-      this.media.directory.name,
-      this.media.name
+        this.media.directory.path,
+        this.media.directory.name,
+        this.media.name
     );
   }
 
   get DirectoryPath(): string {
     return Utils.concatUrls(
-      this.media.directory.path,
-      this.media.directory.name
+        this.media.directory.path,
+        this.media.directory.name
     );
   }
 
@@ -101,28 +108,28 @@ export class InfoPanelLightboxComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     const metadata = this.media.metadata as PhotoMetadata;
     if (
-      (metadata.keywords && metadata.keywords.length > 0) ||
-      (metadata.faces && metadata.faces.length > 0)
+        (metadata.keywords && metadata.keywords.length > 0) ||
+        (metadata.faces && metadata.faces.length > 0)
     ) {
       this.keywords = [];
       if (Config.Faces.enabled) {
         const names: string[] = (metadata.faces || []).map(
-          (f): string => f.name
+            (f): string => f.name
         );
         this.keywords = names
-          .filter((name, index): boolean => names.indexOf(name) === index)
-          .map((n): { type: SearchQueryTypes; value: string } => ({
-            value: n,
-            type: SearchQueryTypes.person,
-          }));
+            .filter((name, index): boolean => names.indexOf(name) === index)
+            .map((n): { type: SearchQueryTypes; value: string } => ({
+              value: n,
+              type: SearchQueryTypes.person,
+            }));
       }
       this.keywords = this.keywords.concat(
-        (metadata.keywords || []).map(
-          (k): { type: SearchQueryTypes; value: string } => ({
-            value: k,
-            type: SearchQueryTypes.keyword,
-          })
-        )
+          (metadata.keywords || []).map(
+              (k): { type: SearchQueryTypes; value: string } => ({
+                value: k,
+                type: SearchQueryTypes.keyword,
+              })
+          )
       );
     }
   }
@@ -133,15 +140,15 @@ export class InfoPanelLightboxComponent implements OnInit, OnChanges {
 
   calcMpx(): string {
     return (
-      (this.media.metadata.size.width * this.media.metadata.size.height) /
-      1000000
+        (this.media.metadata.size.width * this.media.metadata.size.height) /
+        1000000
     ).toFixed(2);
   }
 
   isThisYear(): boolean {
     return (
-      new Date().getFullYear() ===
-      new Date(this.media.metadata.creationDate).getUTCFullYear()
+        new Date().getFullYear() ===
+        new Date(this.media.metadata.creationDate).getUTCFullYear()
     );
   }
 
@@ -152,23 +159,23 @@ export class InfoPanelLightboxComponent implements OnInit, OnChanges {
     return '1/' + Math.round(1 / f);
   }
 
-  hasPositionData(): boolean {
+  hasTextPositionData(): boolean {
     return (
-      !!(this.media as PhotoDTO).metadata.positionData &&
-      !!(
-        (this.media as PhotoDTO).metadata.positionData.city ||
-        (this.media as PhotoDTO).metadata.positionData.state ||
-        (this.media as PhotoDTO).metadata.positionData.country
-      )
+        !!(this.media as PhotoDTO).metadata.positionData &&
+        !!(
+            (this.media as PhotoDTO).metadata.positionData.city ||
+            (this.media as PhotoDTO).metadata.positionData.state ||
+            (this.media as PhotoDTO).metadata.positionData.country
+        )
     );
   }
 
   hasGPS(): boolean {
     return !!(
-      (this.media as PhotoDTO).metadata.positionData &&
-      (this.media as PhotoDTO).metadata.positionData.GPSData &&
-      (this.media as PhotoDTO).metadata.positionData.GPSData.latitude &&
-      (this.media as PhotoDTO).metadata.positionData.GPSData.longitude
+        (this.media as PhotoDTO).metadata.positionData &&
+        (this.media as PhotoDTO).metadata.positionData.GPSData &&
+        (this.media as PhotoDTO).metadata.positionData.GPSData.latitude &&
+        (this.media as PhotoDTO).metadata.positionData.GPSData.longitude
     );
   }
 
@@ -177,9 +184,9 @@ export class InfoPanelLightboxComponent implements OnInit, OnChanges {
       return '';
     }
     let str =
-      (this.media as PhotoDTO).metadata.positionData.city ||
-      (this.media as PhotoDTO).metadata.positionData.state ||
-      '';
+        (this.media as PhotoDTO).metadata.positionData.city ||
+        (this.media as PhotoDTO).metadata.positionData.state ||
+        '';
 
     if (str.length !== 0) {
       str += ', ';

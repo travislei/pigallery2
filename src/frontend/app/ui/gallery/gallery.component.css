@@ -1,18 +1,8 @@
 .container-fluid {
   width: 100%;
   padding: 0;
-  margin-top: -20px;
 }
 
-.blog-wrapper {
-  opacity: 0.8;
-  display: flex;
-  position: relative;
-}
-
-.blog-wrapper:hover {
-  opacity: 1;
-}
 
 .blog-map-row {
   width: 100%;
@@ -23,20 +13,6 @@
   min-height: 80px;
 }
 
-.btn-blog-details {
-  width: calc(100% - 5px);
-  position: absolute;
-  bottom: 0;
-  margin-left: 2px;
-  margin-right: 2px;
-  color: #333;
-  border: 0;
-}
-
-.btn-blog-details:hover {
-  color: #000;
-  background-image: linear-gradient(transparent, #ccc);
-}
 
 app-gallery-blog {
   float: left;
@@ -53,17 +29,25 @@ app-gallery-map {
   right: 4px
 }
 
+
 .directories {
   margin-right: 2px;
   margin-left: 2px;
+  display: block;
 }
 
+.spinner-container {
+  position: absolute;
+  top: 50%;
+  max-width: 100%;
+  width: 100%;
+  padding: 0;
+}
 
 .spinner {
-  margin-top: 50px;
   width: 80px;
   height: 80px;
-  background-color: #333;
+  background-color: var(--bs-body-color);
 
   margin-left: auto;
   margin-right: auto;

@@ -9,6 +9,7 @@ import {SharingDTO} from '../../common/entities/SharingDTO';
 import {Utils} from '../../common/Utils';
 import {LoggerRouter} from '../routes/LoggerRouter';
 import {TAGS} from '../../common/config/public/ClientConfig';
+import {ExtensionConfigWrapper} from '../model/extension/ExtensionConfigWrapper';
 
 const forcedDebug = process.env['NODE_ENV'] === 'debug';
 
@@ -107,7 +108,7 @@ export class RenderingMWs {
     req: Request,
     res: Response
   ): Promise<void> {
-    const originalConf = await Config.original();
+    const originalConf = await ExtensionConfigWrapper.original();
     // These are sensitive information, do not send to the client side
     originalConf.Server.sessionSecret = null;
     const message = new Message<PrivateConfigClass>(
@@ -131,7 +132,18 @@ export class RenderingMWs {
       if (err.details) {
         Logger.warn('Handled error:');
         LoggerRouter.log(Logger.warn, req, res);
+        // use separate rendering for detailsStr
+        const d = err.detailsStr;
+        delete err.detailsStr;
         console.log(err);
+        if (err.detailsStr) {
+          try {
+            console.log('details:', JSON.stringify(err.detailsStr));
+          } catch (_) {
+            console.log(err.detailsStr);
+          }
+        }
+        err.detailsStr = d;
         delete err.details; // do not send back error object to the client side
 
         // hide error details for non developers

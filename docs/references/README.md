@@ -13,6 +13,10 @@ source: https://www.reddit.com/r/selfhosted/comments/yw2edx/i_just_want_to_show_
 
 source: https://github.com/bpatrik/pigallery2/discussions/328
 
+![discussion_328](assets/discussion_328_2.png)
+
+source: https://github.com/bpatrik/pigallery2/discussions/328
+
 ![discussion_370](assets/discussion_370.png)
 
 source: https://github.com/bpatrik/pigallery2/discussions/370

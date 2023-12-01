@@ -1,6 +1,10 @@
 :host {
   position: relative;
   overflow: hidden;
+  transition: scale .3s ease-out;
+}
+:host:hover {
+  scale: 98%;
 }
 
 img {
@@ -13,6 +17,10 @@ img {
   -o-animation: fadein 2s; /* Opera < 12.1 */
   animation: fadein 2s;
   vertical-align: unset;
+}
+
+img.loading{
+  background: var(--item-background) ;
 }
 
 @keyframes fadein {
@@ -149,6 +157,6 @@ a {
   background-color: rgba(0, 0, 0, 0.8);
 }
 
-.photo-keywords .oi-person {
+.photo-keywords ng-icon {
   margin-right: 2px;
 }

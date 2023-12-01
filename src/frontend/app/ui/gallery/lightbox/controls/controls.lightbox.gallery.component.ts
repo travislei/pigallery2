@@ -61,13 +61,12 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
   private prevZoom = 1;
 
   constructor(
-    public lightboxService: LightboxService,
-    public fullScreenService: FullScreenService,
-    private authService: AuthenticationService,
-    private cacheService: GalleryCacheService
+      public lightboxService: LightboxService,
+      public fullScreenService: FullScreenService,
+      private authService: AuthenticationService,
+      private cacheService: GalleryCacheService
   ) {
-    this.searchEnabled =
-      Config.Search.enabled && this.authService.canSearch();
+    this.searchEnabled = this.authService.canSearch();
   }
 
 
@@ -178,11 +177,11 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
     this.prevZoom = this.zoom;
   }
 
-  tap($event: any): void {
+  tap($event: Event): void {
     if (!this.activePhoto || this.activePhoto.gridMedia.isVideo()) {
       return;
     }
-    if ($event.tapCount < 2) {
+    if (($event as unknown as { tapCount: number }).tapCount < 2) {
       return;
     }
 
@@ -273,9 +272,9 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
     // }
     // do not skip video if its playing
     if (
-      this.activePhoto &&
-      this.activePhoto.gridMedia.isVideo() &&
-      !this.mediaElement.Paused
+        this.activePhoto &&
+        this.activePhoto.gridMedia.isVideo() &&
+        !this.mediaElement.Paused
     ) {
       return;
     }
@@ -287,8 +286,8 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
 
     // Video is a special snowflake. It won't go to next media if a video is playing
     if (!(this.activePhoto &&
-      this.activePhoto.gridMedia.isVideo() &&
-      !this.mediaElement.Paused)) {
+        this.activePhoto.gridMedia.isVideo() &&
+        !this.mediaElement.Paused)) {
       p = (t % (this.selectedSlideshowSpeed * 10)) / this.selectedSlideshowSpeed / 10;  // ticks every 100 ms
 
     }
@@ -301,6 +300,7 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
 
     this.ctx.lineWidth = 5;
     this.ctx.strokeStyle = 'white';
+    this.ctx.lineCap = 'round';
     this.ctx.clearRect(0, 0, this.canvas.nativeElement.width, this.canvas.nativeElement.height);
     this.ctx.beginPath();
     this.ctx.arc(this.canvas.nativeElement.width / 2, this.canvas.nativeElement.height / 2, this.canvas.nativeElement.width / 2 - this.ctx.lineWidth, 0, p * 2 * Math.PI);
@@ -318,12 +318,12 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
     this.pause();
     this.drawSliderProgress(0);
     this.timerSub = interval(100)
-      .pipe(filter((t) => {
-        this.drawSliderProgress(t);
-        return t % (this.selectedSlideshowSpeed * 10) === 0; // ticks every 100 ms
-      }))
-      .pipe(skip(1)) // do not skip to next photo right away
-      .subscribe(this.showNextMedia);
+        .pipe(filter((t) => {
+          this.drawSliderProgress(t);
+          return t % (this.selectedSlideshowSpeed * 10) === 0; // ticks every 100 ms
+        }))
+        .pipe(skip(1)) // do not skip to next photo right away
+        .subscribe(this.showNextMedia);
     this.playBackState = PlayBackStates.Play;
   }
 
@@ -377,7 +377,7 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
       }
 
       const photoAspect = MediaDTOUtils.calcAspectRatio(
-        this.activePhoto.gridMedia.media
+          this.activePhoto.gridMedia.media
       );
       const widthFilled = photoAspect > this.photoFrameDim.aspect;
       const divWidth = this.photoFrameDim.width;
@@ -429,7 +429,7 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
   }
 
   private hideControls = () => {
-     this.controllersDimmed = true;
+    this.controllersDimmed = true;
   };
 
   private updateFaceContainerDim(): void {
@@ -438,7 +438,7 @@ export class ControlsLightboxComponent implements OnDestroy, OnInit, OnChanges {
     }
 
     const photoAspect = MediaDTOUtils.calcAspectRatio(
-      this.activePhoto.gridMedia.media
+        this.activePhoto.gridMedia.media
     );
 
     if (photoAspect < this.photoFrameDim.aspect) {

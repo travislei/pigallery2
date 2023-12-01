@@ -1,14 +1,14 @@
-<div class="content d-flex flex-column">
+<div class="content d-flex flex-column bg-body">
   <div class="modal-header">
     <h2 class="modal-title" i18n>Info</h2>
     <button type="button"  class="btn-close"  (click)="close()" aria-label="Close">
     </button>
   </div>
-  <div class="row" *ngIf="galleryService.isSearchResult()">
-    <div class="col-2">
-      <span class="details-icon oi oi-folder"></span>
+  <div class="row" *ngIf="contentLoaderService.isSearchResult()">
+    <div class="col-1 ps-0">
+      <ng-icon class="details-icon" name="ionFolderOutline"></ng-icon>
     </div>
-    <div class="col-10">
+    <div class="col-11">
       <a class="details-main dir-link"
          title="{{DirectoryPath}}"
          [routerLink]="['/gallery', DirectoryPath]"
@@ -18,14 +18,14 @@
     </div>
   </div>
   <div class="row">
-    <div class="col-2">
-      <span class="details-icon oi oi-image"></span>
+    <div class="col-1 ps-0">
+      <ng-icon class="details-icon" name="ionImageOutline"></ng-icon>
     </div>
-    <div class="col-10">
+    <div class="col-11">
       <div class="details-main" >
         {{media.name}}
       </div>
-      <div class="details-sub row">
+      <div class="details-sub text-secondary row">
         <div class="col-4">{{media.metadata.size.width}} x {{media.metadata.size.height}}</div>
         <div class="col-4" *ngIf="isPhoto()">{{calcMpx()}}MP</div>
         <div class="col-4" *ngIf="media.metadata.fileSize">{{media.metadata.fileSize | fileSize}}</div>
@@ -34,14 +34,14 @@
   </div>
 
   <div class="row" *ngIf="media.metadata.creationDate">
-    <div class="col-2">
-      <span class="details-icon oi oi-calendar"></span>
+    <div class="col-1 ps-0">
+      <ng-icon class="details-icon" name="ionCalendarOutline"></ng-icon>
     </div>
-    <div class="col-10">
+    <div class="col-11">
       <div class="details-main">
         {{ media.metadata.creationDate | date: (isThisYear() ? 'MMMM d' : 'longDate') : 'UTC' }}
       </div>
-      <div class="details-sub row">
+      <div class="details-sub  text-secondary row">
         <div class="col-12">{{ media.metadata.creationDate | date : 'EEEE, HH:mm:ss' : 'UTC' }}</div>
       </div>
     </div>
@@ -49,14 +49,14 @@
 
 
   <div class="row" *ngIf="VideoData && (VideoData.duration || VideoData.bitRate)">
-    <div class="col-2">
-      <span class="details-icon oi oi-video"></span>
+    <div class="col-1 ps-0">
+      <ng-icon class="details-icon" name="ionVideocamOutline"></ng-icon>
     </div>
-    <div class="col-10">
+    <div class="col-11">
       <div class="details-main">
         {{"Video"}}
       </div>
-      <div class="details-sub row">
+      <div class="details-sub  text-secondary row">
         <div class="col-6" *ngIf="VideoData.duration">
           <ng-container i18n>duration</ng-container>
           : {{VideoData.duration | duration}}</div>
@@ -73,14 +73,14 @@
 
 
   <div class="row" *ngIf="CameraData">
-    <div class="col-2">
-      <span class="details-icon oi oi-camera-slr"></span>
+    <div class="col-1 ps-0">
+      <ng-icon class="details-icon" name="ionCameraOutline"></ng-icon>
     </div>
-    <div class="col-10">
+    <div class="col-11">
       <div class="details-main">
         {{CameraData.model || CameraData.make || "Camera"}}
       </div>
-      <div class="details-sub row">
+      <div class="details-sub  text-secondary row">
         <div class="col-3" *ngIf="CameraData.ISO">ISO{{CameraData.ISO}}</div>
         <div class="col-3" *ngIf="CameraData.fStop">f/{{CameraData.fStop}}</div>
         <div class="col-3" *ngIf="CameraData.exposure">
@@ -95,32 +95,32 @@
   </div>
 
   <div class="row" *ngIf="Rating">
-    <div class="col-2" title="rating" p18n-rating>
-      <span class="details-icon oi oi-star"></span>
+    <div class="col-1 ps-0" title="rating" p18n-rating>
+      <ng-icon class="details-icon" name="ionStarOutline"></ng-icon>
     </div>
-    <div class="col-10">
-      <div class="details-main mt-2" [title]="Rating + ' stars'">
-        <span *ngFor="let stars of [].constructor(Rating)" class="oi oi-star text-dark me-1"></span>
-        <span *ngFor="let stars of [].constructor(5-Rating)" class="oi oi-star text-muted me-1"></span>
+    <div class="col-11">
+      <div class="details-main" [title]="Rating + ' stars'">
+        <ng-icon *ngFor="let stars of [].constructor(Rating)" class="text-body me-1" name="ionStar"></ng-icon>
+        <ng-icon *ngFor="let stars of [].constructor(5-Rating)" class="text-body-tertiary me-1" name="ionStarOutline"></ng-icon>
       </div>
     </div>
   </div>
 
   <div class="row" *ngIf="keywords">
-    <div class="col-2">
-      <span class="details-icon oi oi-tags"></span>
+    <div class="col-1 ps-0">
+      <ng-icon class="details-icon" name="ionPricetagOutline"></ng-icon>
     </div>
-    <div class="col-10 keywords">
+    <div class="col-11 keywords">
       <ng-template ngFor let-keyword [ngForOf]="keywords" let-last="last">
         <a *ngIf="searchEnabled"
            [routerLink]="['/search', getTextSearchQuery(keyword.value,keyword.type)]" [ngSwitch]="keyword.type">
           <ng-template [ngSwitchCase]="SearchQueryTypes.keyword">#</ng-template><!--
        -->
-          <ng-template [ngSwitchCase]="SearchQueryTypes.person"><span class="oi oi-person"></span></ng-template><!--
+          <ng-template [ngSwitchCase]="SearchQueryTypes.person"><ng-icon name="ionPersonOutline"></ng-icon></ng-template><!--
        -->{{keyword.value}}</a>
         <span *ngIf="!searchEnabled" [ngSwitch]="keyword.type">
           <ng-template [ngSwitchCase]="SearchQueryTypes.keyword">#</ng-template><!--
-       --><ng-template [ngSwitchCase]="SearchQueryTypes.person"><span class="oi oi-person"></span></ng-template><!--
+       --><ng-template [ngSwitchCase]="SearchQueryTypes.person"><ng-icon name="ionPersonOutline"></ng-icon></ng-template><!--
        -->{{keyword.value}}</span>
         <ng-template [ngIf]="!last">,&#32;</ng-template>
       </ng-template>
@@ -128,15 +128,15 @@
   </div>
 
 
-  <div class="row" *ngIf="hasPositionData()">
-    <div class="col-2">
-      <span class="details-icon oi oi-map-marker"></span>
+  <div class="row" *ngIf="hasTextPositionData() || hasGPS()">
+    <div class="col-1 ps-0">
+      <ng-icon class="details-icon" name="ionLocationOutline"></ng-icon>
     </div>
-    <div class="col-10">
+    <div class="col-11">
       <div class="details-main">
         {{getPositionText() || "Position"}}
       </div>
-      <div class="details-sub row" *ngIf="hasGPS()">
+      <div class="details-sub text-secondary row" *ngIf="hasGPS()">
         <div class="col-12">
           {{PositionData.GPSData.latitude.toFixed(6)}},
           {{PositionData.GPSData.longitude.toFixed(6)}}

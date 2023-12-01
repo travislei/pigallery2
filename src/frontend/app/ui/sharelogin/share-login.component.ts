@@ -3,6 +3,7 @@ import {AuthenticationService} from '../../model/network/authentication.service'
 import {ErrorCodes} from '../../../../common/entities/Error';
 import {Config} from '../../../../common/config/public/Config';
 import {NavigationService} from '../../model/navigation.service';
+import {ShareService} from '../gallery/share.service';
 
 @Component({
   selector: 'app-share-login',
@@ -16,8 +17,9 @@ export class ShareLoginComponent implements OnInit {
   title: string;
 
   constructor(
-    private authService: AuthenticationService,
-    private navigation: NavigationService
+      public shareService: ShareService,
+      private authService: AuthenticationService,
+      private navigation: NavigationService
   ) {
     this.title = Config.Server.applicationTitle;
   }
@@ -36,8 +38,8 @@ export class ShareLoginComponent implements OnInit {
       await this.authService.shareLogin(this.password);
     } catch (error) {
       if (
-        (error && error.code === ErrorCodes.CREDENTIAL_NOT_FOUND) ||
-        error === 'Unauthorized'
+          (error && error.code === ErrorCodes.CREDENTIAL_NOT_FOUND) ||
+          error === 'Unauthorized'
       ) {
         this.loginError = true;
       }

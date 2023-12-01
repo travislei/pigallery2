@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "cli": {
-    "defaultCollection": "@angular-eslint/schematics"
+    "schematicCollections": [
+      "@angular-eslint/schematics",
+      "@schematics/angular"
+    ]
   },
   "version": 1,
   "newProjectRoot": "projects",
@@ -90,7 +93,7 @@
             "tsConfig": "src/frontend/tsconfig.app.json",
             "polyfills": "src/frontend/polyfills.ts",
             "assets": [
-              "src/frontend/assets",
+              "src/frontend/robots.txt",
               {
                 "glob": "**/*",
                 "input": "node_modules/leaflet/dist/images/",
@@ -100,7 +103,6 @@
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.css",
               "node_modules/ngx-bootstrap/datepicker/bs-datepicker.css",
-              "node_modules/open-iconic/font/css/open-iconic-bootstrap.css",
               "node_modules/ngx-toastr/toastr.css",
               "node_modules/leaflet/dist/leaflet.css",
               "node_modules/leaflet.markercluster/dist/MarkerCluster.css",
@@ -177,16 +179,17 @@
         "test": {
           "builder": "@angular-builders/custom-webpack:karma",
           "options": {
-            "main": "src/frontend/test.ts",
             "karmaConfig": "./karma.conf.js",
-            "polyfills": "src/frontend/polyfills.ts",
+            "polyfills": [
+              "src/frontend/polyfills.ts",
+              "zone.js/testing"
+            ],
             "tsConfig": "src/frontend/tsconfig.spec.json",
             "scripts": [],
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "node_modules/ngx-toastr/toastr.css",
               "node_modules/bootstrap/dist/css/bootstrap.css",
-              "node_modules/open-iconic/font/css/open-iconic-bootstrap.css",
               "node_modules/ngx-bootstrap/datepicker/bs-datepicker.css",
               "node_modules/leaflet/dist/leaflet.css",
               "node_modules/leaflet.markercluster/dist/MarkerCluster.css",
@@ -194,7 +197,6 @@
               "src/frontend/styles.css"
             ],
             "assets": [
-              "src/frontend/assets",
               {
                 "glob": "**/*",
                 "input": "node_modules/leaflet/dist/images/",
@@ -219,5 +221,12 @@
       }
     }
   },
-  "defaultProject": "pigallery2"
+  "schematics": {
+    "@angular-eslint/schematics:application": {
+      "setParserOptionsProject": true
+    },
+    "@angular-eslint/schematics:library": {
+      "setParserOptionsProject": true
+    }
+  }
 }

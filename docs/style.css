@@ -127,6 +127,10 @@ body {
   text-align: left;
 }
 
+ul {
+  text-align: left;
+}
+
 hr {
   background: white;
   margin-top: 0;
@@ -142,3 +146,13 @@ hr {
 }
 
 
+.row.feature:nth-child(odd) .feature-image{
+  order: 2;
+}
+
+/*Medium devices (tablets, 768px and up)*/
+@media (max-width: 768px) {
+  .row.feature .feature-image{
+    order: 2;
+  }
+}

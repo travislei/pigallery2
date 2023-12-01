@@ -153,7 +153,7 @@ gulp.task(
     const tasks = [];
     createFrontendTask(
       'build-frontend-release default',
-      'ng build --prod  --no-progress  --output-path=./release/dist'
+      'ng build --configuration production  --no-progress  --output-path=./release/dist'
     );
     tasks.push('build-frontend-release default');
     return gulp.series(...tasks);
@@ -242,22 +242,12 @@ gulp.task('zip-release', (): any =>
     .pipe(gulp.dest('.'))
 );
 
-gulp.task(
-  'create-release',
-  gulp.series(
-    'build-frontend',
-    'build-backend',
-    'copy-static',
-    'copy-package',
-    'zip-release'
-  )
-);
 
 const simpleBuild = (isProd: boolean): any => {
   const tasks = [];
   let cmd = 'ng build ';
   if (isProd) {
-    cmd += ' --prod --no-extract-licenses ';
+    cmd += ' --configuration production --no-extract-licenses ';
   }
   createFrontendTask('build-frontend default', cmd);
   tasks.push('build-frontend default');
@@ -389,10 +379,61 @@ gulp.task('generate-man', async (cb): Promise<void> => {
   cb();
 });
 
+// this is a workaround for bundle hash is not considering localization
+// so all the js files would have the same name and caching would not be possible to use
+// prefixing main.js with localization to force reload
+// see: https://github.com/angular/angular-cli/issues/17416
+gulp.task('localize-bundles', async (cb): Promise<void> => {
+  const bundlesToUpdate = ['main'];
+  const foldersToCheck = ['./dist', './release/dist'];
+  for (let f = 0; f < foldersToCheck.length; ++f) {
+    const folder = foldersToCheck[f];
+    if (!fs.existsSync(folder)) {
+      continue;
+    }
+    const builds = fs.readdirSync(folder);
+
+    for (let i = 0; i < builds.length; ++i) {
+      const dir = path.join(folder, builds[i]);
+      const indexhtmlPath = path.join(dir, 'index.html');
+
+      let indexhtml = fs.readFileSync(indexhtmlPath, 'utf8');
+
+      for (let j = 0; j < bundlesToUpdate.length; ++j) {
+
+        const rgx = new RegExp('<script src="' + bundlesToUpdate[j], 'g');
+        indexhtml = indexhtml.replace(rgx, '<script src="' + builds[i] + '.' + bundlesToUpdate[j]);
+        fs.readdirSync(folder);
+
+        const fileToRename = fs.readdirSync(dir)
+          .find(fl => fl.startsWith(bundlesToUpdate[j]) && fl.endsWith('js'));
+        if (!fileToRename) {
+          continue;
+        }
+        fs.renameSync(path.join(dir, fileToRename), path.join(dir, builds[i] + '.' + fileToRename));
+      }
+      fs.writeFileSync(indexhtmlPath, indexhtml, 'utf8');
+    }
+  }
+  cb();
+});
+
 gulp.task(
   'add-translation',
   gulp.series('extract-locale', 'add-translation-only')
 );
 
 gulp.task('build-dev', simpleBuild(false));
-gulp.task('build-prod', simpleBuild(true));
+gulp.task('build-prod', gulp.series(simpleBuild(true), 'localize-bundles'));
+
+gulp.task(
+  'create-release',
+  gulp.series(
+    'build-frontend',
+    'localize-bundles',
+    'build-backend',
+    'copy-static',
+    'copy-package',
+    'zip-release'
+  )
+);

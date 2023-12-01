@@ -10,10 +10,14 @@ import {Brackets, SelectQueryBuilder, WhereExpression} from 'typeorm';
 import {Config} from '../../../common/config/private/Config';
 import {
   ANDSearchQuery,
+  DatePatternFrequency,
+  DatePatternSearch,
   DistanceSearch,
   FromDateSearch,
+  MaxPersonCountSearch,
   MaxRatingSearch,
   MaxResolutionSearch,
+  MinPersonCountSearch,
   MinRatingSearch,
   MinResolutionSearch,
   OrientationSearch,
@@ -28,11 +32,11 @@ import {
 } from '../../../common/entities/SearchQueryDTO';
 import {GalleryManager} from './GalleryManager';
 import {ObjectManagers} from '../ObjectManagers';
-import {PhotoDTO} from '../../../common/entities/PhotoDTO';
 import {DatabaseType} from '../../../common/config/private/PrivateConfig';
 import {Utils} from '../../../common/Utils';
 import {FileEntity} from './enitites/FileEntity';
 import {SQL_COLLATE} from './enitites/EntityUtils';
+import {GroupSortByTypes, SortByTypes, SortingMethod} from '../../../common/entities/SortingMethods';
 
 export class SearchManager {
   private DIRECTORY_SELECT = [
@@ -83,7 +87,7 @@ export class SearchManager {
           .where('photo.metadata.keywords LIKE :text COLLATE ' + SQL_COLLATE, {
             text: '%' + text + '%',
           })
-          .limit(Config.Search.AutoComplete.targetItemsPerCategory * 2)
+          .limit(Config.Search.AutoComplete.ItemsPerCategory.keyword)
           .getRawMany()
       )
         .map(
@@ -118,7 +122,7 @@ export class SearchManager {
                 text: '%' + text + '%',
               })
               .limit(
-                Config.Search.AutoComplete.targetItemsPerCategory * 2
+                Config.Search.AutoComplete.ItemsPerCategory.person
               )
               .orderBy('person.count', 'DESC')
               .getRawMany()
@@ -159,7 +163,7 @@ export class SearchManager {
           .groupBy(
             'photo.metadata.positionData.country, photo.metadata.positionData.state, photo.metadata.positionData.city'
           )
-          .limit(Config.Search.AutoComplete.targetItemsPerCategory * 2)
+          .limit(Config.Search.AutoComplete.ItemsPerCategory.position)
           .getRawMany()
       )
         .filter((pm): boolean => !!pm)
@@ -197,7 +201,7 @@ export class SearchManager {
                 text: '%' + text + '%',
               })
               .limit(
-                Config.Search.AutoComplete.targetItemsPerCategory * 2
+                Config.Search.AutoComplete.ItemsPerCategory.fileName
               )
               .getRawMany()
           ).map((r) => r.name),
@@ -221,7 +225,7 @@ export class SearchManager {
                 {text: '%' + text + '%'}
               )
               .limit(
-                Config.Search.AutoComplete.targetItemsPerCategory * 2
+                Config.Search.AutoComplete.ItemsPerCategory.caption
               )
               .getRawMany()
           ).map((r) => r.caption),
@@ -244,7 +248,7 @@ export class SearchManager {
                 text: '%' + text + '%',
               })
               .limit(
-                Config.Search.AutoComplete.targetItemsPerCategory * 2
+                Config.Search.AutoComplete.ItemsPerCategory.directory
               )
               .getRawMany()
           ).map((r) => r.name),
@@ -253,21 +257,22 @@ export class SearchManager {
       );
     }
 
-    let result: AutoCompleteItem[];
+    const result: AutoCompleteItem[] = [];
 
-    // if not enough items are available, load more from one category
-    if (
-      [].concat(...partialResult).length <
-      Config.Search.AutoComplete.maxItems
-    ) {
-      result = [].concat(...partialResult);
-    } else {
-      result = [].concat(
-        ...partialResult.map((l) =>
-          l.slice(0, Config.Search.AutoComplete.targetItemsPerCategory)
-        )
-      );
+    while (result.length < Config.Search.AutoComplete.ItemsPerCategory.maxItems) {
+      let adding = false;
+      for (let i = 0; i < partialResult.length; ++i) {
+        if (partialResult[i].length <= 0) {
+          continue;
+        }
+        result.push(partialResult[i].pop());
+        adding = true;
+      }
+      if (!adding) {
+        break;
+      }
     }
+
 
     return SearchManager.autoCompleteItemsUnique(result);
   }
@@ -317,21 +322,21 @@ export class SearchManager {
           .getRepository(DirectoryEntity)
           .createQueryBuilder('directory')
           .where(this.buildWhereQuery(dirQuery, true))
-          .leftJoinAndSelect('directory.preview', 'preview')
-          .leftJoinAndSelect('preview.directory', 'previewDirectory')
+          .leftJoinAndSelect('directory.cover', 'cover')
+          .leftJoinAndSelect('cover.directory', 'coverDirectory')
           .limit(Config.Search.maxDirectoryResult + 1)
           .select([
             'directory',
-            'preview.name',
-            'previewDirectory.name',
-            'previewDirectory.path',
+            'cover.name',
+            'coverDirectory.name',
+            'coverDirectory.path',
           ])
           .getMany();
 
-        // setting previews
+        // setting covers
         if (result.directories) {
           for (const item of result.directories) {
-            await ObjectManagers.getInstance().GalleryManager.fillPreviewForSubDir(connection, item as DirectoryEntity);
+            await ObjectManagers.getInstance().GalleryManager.fillCoverForSubDir(connection, item as DirectoryEntity);
           }
         }
         if (
@@ -345,19 +350,59 @@ export class SearchManager {
     return result;
   }
 
-  public async getRandomPhoto(query: SearchQueryDTO): Promise<PhotoDTO> {
+
+  public static setSorting<T>(
+    query: SelectQueryBuilder<T>,
+    sortings: SortingMethod[]
+  ): SelectQueryBuilder<T> {
+    if (!sortings || !Array.isArray(sortings)) {
+      return query;
+    }
+    if (sortings.findIndex(s => s.method == SortByTypes.Random) !== -1 && sortings.length > 1) {
+      throw new Error('Error during applying sorting: Can\' randomize and also sort the result. Bad input:' + sortings.map(s => GroupSortByTypes[s.method]).join(', '));
+    }
+    for (const sort of sortings) {
+      switch (sort.method) {
+        case SortByTypes.Date:
+          query.addOrderBy('media.metadata.creationDate', sort.ascending ? 'ASC' : 'DESC');
+          break;
+        case SortByTypes.Rating:
+          query.addOrderBy('media.metadata.rating', sort.ascending ? 'ASC' : 'DESC');
+          break;
+        case SortByTypes.Name:
+          query.addOrderBy('media.name', sort.ascending ? 'ASC' : 'DESC');
+          break;
+        case SortByTypes.PersonCount:
+          query.addOrderBy('media.metadata.personsLength', sort.ascending ? 'ASC' : 'DESC');
+          break;
+        case SortByTypes.FileSize:
+          query.addOrderBy('media.metadata.fileSize', sort.ascending ? 'ASC' : 'DESC');
+          break;
+        case SortByTypes.Random:
+          if (Config.Database.type === DatabaseType.mysql) {
+            query.groupBy('RAND(), media.id');
+          } else {
+            query.groupBy('RANDOM()');
+          }
+          break;
+      }
+    }
+
+    return query;
+  }
+
+  public async getNMedia(query: SearchQueryDTO, sortings: SortingMethod[], take: number, photoOnly = false) {
     const connection = await SQLConnection.getConnection();
     const sqlQuery: SelectQueryBuilder<PhotoEntity> = connection
-      .getRepository(PhotoEntity)
+      .getRepository(photoOnly ? PhotoEntity : MediaEntity)
       .createQueryBuilder('media')
       .select(['media', ...this.DIRECTORY_SELECT])
       .innerJoin('media.directory', 'directory')
       .where(await this.prepareAndBuildWhereQuery(query));
+    SearchManager.setSorting(sqlQuery, sortings);
 
-    if (Config.Database.type === DatabaseType.mysql) {
-      return await sqlQuery.groupBy('RAND(), media.id').limit(1).getOne();
-    }
-    return await sqlQuery.groupBy('RANDOM()').limit(1).getOne();
+    return sqlQuery.limit(take).getMany();
+
   }
 
   public async getCount(query: SearchQueryDTO): Promise<number> {
@@ -593,6 +638,52 @@ export class SearchManager {
           return q;
         });
 
+      case SearchQueryTypes.min_person_count:
+        if (directoryOnly) {
+          throw new Error('not supported in directoryOnly mode');
+        }
+        return new Brackets((q): unknown => {
+          if (typeof (query as MinPersonCountSearch).value === 'undefined') {
+            throw new Error(
+              'Invalid search query: Person count Query should contain minvalue'
+            );
+          }
+
+          const relation = (query as TextSearch).negate ? '<' : '>=';
+
+          const textParam: { [key: string]: unknown } = {};
+          textParam['min' + queryId] = (query as MinPersonCountSearch).value;
+          q.where(
+            `media.metadata.personsLength ${relation}  :min${queryId}`,
+            textParam
+          );
+
+          return q;
+        });
+      case SearchQueryTypes.max_person_count:
+        if (directoryOnly) {
+          throw new Error('not supported in directoryOnly mode');
+        }
+        return new Brackets((q): unknown => {
+          if (typeof (query as MaxPersonCountSearch).value === 'undefined') {
+            throw new Error(
+              'Invalid search query: Person count Query should contain max value'
+            );
+          }
+
+          const relation = (query as TextSearch).negate ? '>' : '<=';
+
+          if (typeof (query as MaxRatingSearch).value !== 'undefined') {
+            const textParam: { [key: string]: unknown } = {};
+            textParam['max' + queryId] = (query as MaxPersonCountSearch).value;
+            q.where(
+              `media.metadata.personsLength ${relation}  :max${queryId}`,
+              textParam
+            );
+          }
+          return q;
+        });
+
       case SearchQueryTypes.min_resolution:
         if (directoryOnly) {
           throw new Error('not supported in directoryOnly mode');
@@ -653,6 +744,142 @@ export class SearchManager {
           }
           return q;
         });
+
+      case SearchQueryTypes.date_pattern: {
+        if (directoryOnly) {
+          throw new Error('not supported in directoryOnly mode');
+        }
+        const tq = query as DatePatternSearch;
+
+        return new Brackets((q): unknown => {
+          // Fixed frequency
+          if ((tq.frequency === DatePatternFrequency.years_ago ||
+            tq.frequency === DatePatternFrequency.months_ago ||
+            tq.frequency === DatePatternFrequency.weeks_ago ||
+            tq.frequency === DatePatternFrequency.days_ago)) {
+
+            if (isNaN(tq.agoNumber)) {
+              throw new Error('ago number is missing on date patter search query with frequency: ' + DatePatternFrequency[tq.frequency] + ', ago number: ' + tq.agoNumber);
+            }
+            const to = new Date();
+            to.setHours(0, 0, 0, 0);
+            to.setUTCDate(to.getUTCDate() + 1);
+
+            switch (tq.frequency) {
+              case DatePatternFrequency.days_ago:
+                to.setUTCDate(to.getUTCDate() - tq.agoNumber);
+                break;
+              case DatePatternFrequency.weeks_ago:
+                to.setUTCDate(to.getUTCDate() - tq.agoNumber * 7);
+                break;
+
+              case DatePatternFrequency.months_ago:
+                to.setUTCMonth(to.getUTCMonth() - tq.agoNumber);
+                break;
+
+              case DatePatternFrequency.years_ago:
+                to.setUTCFullYear(to.getUTCFullYear() - tq.agoNumber);
+                break;
+            }
+            const from = new Date(to);
+            from.setUTCDate(from.getUTCDate() - tq.daysLength);
+
+            const textParam: { [key: string]: unknown } = {};
+            textParam['to' + queryId] = to.getTime();
+            textParam['from' + queryId] = from.getTime();
+            if (tq.negate) {
+
+              q.where(
+                `media.metadata.creationDate >= :to${queryId}`,
+                textParam
+              ).orWhere(`media.metadata.creationDate < :from${queryId}`,
+                textParam);
+            } else {
+              q.where(
+                `media.metadata.creationDate < :to${queryId}`,
+                textParam
+              ).andWhere(`media.metadata.creationDate >= :from${queryId}`,
+                textParam);
+            }
+
+          } else {
+            // recurring
+
+            const textParam: { [key: string]: unknown } = {};
+            textParam['diff' + queryId] = tq.daysLength;
+            const addWhere = (duration: string, crossesDateBoundary: boolean) => {
+
+              const relationEql = tq.negate ? '!=' : '=';
+
+              // reminder: !(a&&b) = (!a || !b), that is what happening here if negate is true
+              const relationTop = tq.negate ? '>' : '<=';
+              const relationBottom = tq.negate ? '<=' : '>';
+              // this is an XoR. during date boundary crossing we swap boolean logic again
+              const whereFN = !!tq.negate !== crossesDateBoundary ? 'orWhere' : 'andWhere';
+
+
+              if (Config.Database.type === DatabaseType.sqlite) {
+                if (tq.daysLength == 0) {
+                  q.where(
+                    `CAST(strftime('${duration}',media.metadataCreationDate/1000, 'unixepoch') AS INTEGER) ${relationEql} CAST(strftime('${duration}','now') AS INTEGER)`
+                  );
+                } else {
+                  q.where(
+                    `CAST(strftime('${duration}',media.metadataCreationDate/1000, 'unixepoch') AS INTEGER) ${relationTop} CAST(strftime('${duration}','now') AS INTEGER)`
+                  )[whereFN](`CAST(strftime('${duration}',media.metadataCreationDate/1000, 'unixepoch') AS INTEGER) ${relationBottom} CAST(strftime('${duration}','now','-:diff${queryId} day') AS INTEGER)`,
+                    textParam);
+                }
+              } else {
+                if (tq.daysLength == 0) {
+                  q.where(
+                    `CAST(FROM_UNIXTIME(media.metadataCreationDate/1000, '${duration}') AS SIGNED) ${relationEql} CAST(DATE_FORMAT(CURDATE(),'${duration}') AS SIGNED)`
+                  );
+                } else {
+                  q.where(
+                    `CAST(FROM_UNIXTIME(media.metadataCreationDate/1000, '${duration}') AS SIGNED) ${relationTop} CAST(DATE_FORMAT(CURDATE(),'${duration}') AS SIGNED)`
+                  )[whereFN](`CAST(FROM_UNIXTIME(media.metadataCreationDate/1000, '${duration}') AS SIGNED) ${relationBottom} CAST(DATE_FORMAT((DATE_ADD(curdate(), INTERVAL -:diff${queryId} DAY)),'${duration}') AS SIGNED)`,
+                    textParam);
+                }
+              }
+            };
+            switch (tq.frequency) {
+              case DatePatternFrequency.every_year:
+                if (tq.daysLength >= 365) { // trivial result includes all photos
+                  if (tq.negate) {
+                    q.andWhere('FALSE');
+                  }
+                  return q;
+                }
+                const d = new Date();
+                const dayOfYear = Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
+                addWhere('%j', dayOfYear - tq.daysLength < 0);
+                break;
+              case DatePatternFrequency.every_month:
+                if (tq.daysLength >= 31) { // trivial result includes all photos
+                  if (tq.negate) {
+                    q.andWhere('FALSE');
+                  }
+                  return q;
+                }
+                addWhere('%d', (new Date()).getUTCDate() - tq.daysLength < 0);
+                break;
+              case DatePatternFrequency.every_week:
+                if (tq.daysLength >= 7) { // trivial result includes all photos
+                  if (tq.negate) {
+                    q.andWhere('FALSE');
+                  }
+                  return q;
+                }
+                addWhere('%w', (new Date()).getUTCDay() - tq.daysLength < 0);
+                break;
+            }
+
+
+          }
+
+          return q;
+        });
+      }
 
       case SearchQueryTypes.SOME_OF:
         throw new Error('Some of not supported');

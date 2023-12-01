@@ -4,12 +4,8 @@
   "compilerOptions": {
     "outDir": "../../out-tsc/app",
     "types": [],
-    "target": "es2017",
-    "module": "es2020",
-    "lib": [
-      "es2018",
-      "dom"
-    ]
+    "target": "ES2022",
+    "module": "ES2022",
   },
   "files": [
     "./main.ts",

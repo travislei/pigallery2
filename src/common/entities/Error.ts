@@ -1,4 +1,4 @@
-import { Request } from 'express';
+import {Request} from 'express';
 
 export enum ErrorCodes {
   NOT_AUTHENTICATED = 1,
@@ -7,24 +7,25 @@ export enum ErrorCodes {
   PERMISSION_DENIED = 4,
   CREDENTIAL_NOT_FOUND = 5,
 
-  USER_CREATION_ERROR = 6,
+  USER_CREATION_ERROR = 20,
 
-  GENERAL_ERROR = 7,
-  THUMBNAIL_GENERATION_ERROR = 8,
-  PHOTO_GENERATION_ERROR = 9,
-  PERSON_ERROR = 10,
-  SERVER_ERROR = 11,
+  GENERAL_ERROR = 31,
+  THUMBNAIL_GENERATION_ERROR = 32,
+  PHOTO_GENERATION_ERROR = 33,
+  PERSON_ERROR = 34,
+  METAFILE_ERROR = 35,
+  SERVER_ERROR = 36,
 
-  USER_MANAGEMENT_DISABLED = 12,
+  USER_MANAGEMENT_DISABLED = 40,
 
-  INPUT_ERROR = 13,
+  INPUT_ERROR = 50,
 
-  SETTINGS_ERROR = 14,
-  TASK_ERROR = 15,
-  JOB_ERROR = 16,
-  LocationLookUp_ERROR = 17,
+  SETTINGS_ERROR = 60,
+  TASK_ERROR = 61,
+  JOB_ERROR = 62,
+  LocationLookUp_ERROR = 63,
 
-  ALBUM_ERROR = 18,
+  ALBUM_ERROR = 70,
 }
 
 export class ErrorDTO {
@@ -32,16 +33,16 @@ export class ErrorDTO {
   public request: {
     method: string;
     url: string;
-  } = { method: '', url: '' };
+  } = {method: '', url: ''};
 
   constructor(
-    public code: ErrorCodes,
-    public message?: string,
-    public details?: any,
-    req?: Request
+      public code: ErrorCodes,
+      public message?: string,
+      public details?: any,
+      req?: Request
   ) {
     this.detailsStr =
-      (this.details ? this.details.toString() : '') || ErrorCodes[code];
+        (this.details ? this.details.toString() : '') || ErrorCodes[code];
     if (req) {
       this.request = {
         method: req.method,

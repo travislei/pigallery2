@@ -4,12 +4,12 @@ form {
 
 @media screen and ( min-width: 1200px) {
   .search-field {
-    width: 400px;
+    max-width: 400px;
   }
 }
 
 @media screen and ( min-width: 1400px) {
   .search-field {
-    width: 500px;
+    max-width: 500px;
   }
 }

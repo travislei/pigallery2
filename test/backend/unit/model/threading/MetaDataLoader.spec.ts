@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 import {expect} from 'chai';
-import {MetadataLoader} from '../../../../../src/backend/model/threading/MetadataLoader';
+import {MetadataLoader} from '../../../../../src/backend/model/fileaccess/MetadataLoader';
 import {Utils} from '../../../../../src/common/Utils';
 import * as path from 'path';
 import * as fs from 'fs';
-import {PhotoProcessing} from '../../../../../src/backend/model/fileprocessing/PhotoProcessing';
+import {PhotoProcessing} from '../../../../../src/backend/model/fileaccess/fileprocessing/PhotoProcessing';
 import {Config} from '../../../../../src/common/config/private/Config';
 import {DatabaseType} from '../../../../../src/common/config/private/PrivateConfig';
 
@@ -17,6 +18,7 @@ describe('MetadataLoader', () => {
     Config.Database.type = DatabaseType.sqlite;
     Config.Faces.enabled = true;
     Config.Faces.keywordsToPersons = true;
+    Config.Extensions.enabled = false;
   });
 
 
@@ -65,7 +67,7 @@ describe('MetadataLoader', () => {
     });
     it('jpg 2', async () => {
       const data = await MetadataLoader.loadPhotoMetadata(
-        path.join(__dirname, '/../../../assets/orientation/broken_orientation_exif2.jpg'));
+          path.join(__dirname, '/../../../assets/orientation/broken_orientation_exif2.jpg'));
       const expected = require(path.join(__dirname, '/../../../assets/orientation/broken_orientation_exif2.json'));
       expect(Utils.clone(data)).to.be.deep.equal(expected);
     });
@@ -122,6 +124,12 @@ describe('MetadataLoader', () => {
     expect(Utils.clone(data)).to.be.deep.equal(expected);
   });
 
+  it('should load jpg with provided ImageWidth but missing imageSize', async () => {
+    const data = await MetadataLoader.loadPhotoMetadata(path.join(__dirname, '/../../../assets/imageSizeError.jpg'));
+    const expected = require(path.join(__dirname, '/../../../assets/imageSizeError.json'));
+    expect(Utils.clone(data)).to.be.deep.equal(expected);
+  });
+
 
   it('should load mp4', async () => {
     const data = await MetadataLoader.loadVideoMetadata(path.join(__dirname, '/../../../assets/video.mp4'));
@@ -134,6 +142,12 @@ describe('MetadataLoader', () => {
     const expected = require(path.join(__dirname, '/../../../assets/video_rotate.json'));
     delete data.duration;
     delete expected.duration;
+    expect(Utils.clone(data)).to.be.deep.equal(expected);
+  });
+
+  it('should load mkv', async () => {
+    const data = await MetadataLoader.loadVideoMetadata(path.join(__dirname, '/../../../assets/video_mkv.mkv'));
+    const expected = require(path.join(__dirname, '/../../../assets/video_mkv.json'));
     expect(Utils.clone(data)).to.be.deep.equal(expected);
   });
 

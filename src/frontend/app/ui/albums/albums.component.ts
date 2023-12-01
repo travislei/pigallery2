@@ -1,19 +1,11 @@
-import {
-  Component,
-  ElementRef,
-  OnInit,
-  TemplateRef,
-  ViewChild,
-} from '@angular/core';
-import { AlbumsService } from './albums.service';
-import { BsModalService } from 'ngx-bootstrap/modal';
-import { BsModalRef } from 'ngx-bootstrap/modal/bs-modal-ref.service';
-import {
-  SearchQueryTypes,
-  TextSearch,
-} from '../../../../common/entities/SearchQueryDTO';
-import { UserRoles } from '../../../../common/entities/UserDTO';
-import { AuthenticationService } from '../../model/network/authentication.service';
+import {Component, ElementRef, OnInit, TemplateRef, ViewChild,} from '@angular/core';
+import {AlbumsService} from './albums.service';
+import {BsModalService} from 'ngx-bootstrap/modal';
+import {BsModalRef} from 'ngx-bootstrap/modal/bs-modal-ref.service';
+import {SearchQueryTypes, TextSearch,} from '../../../../common/entities/SearchQueryDTO';
+import {UserRoles} from '../../../../common/entities/UserDTO';
+import {AuthenticationService} from '../../model/network/authentication.service';
+import {PiTitleService} from '../../model/pi-title.service';
 
 @Component({
   selector: 'app-albums',
@@ -21,23 +13,25 @@ import { AuthenticationService } from '../../model/network/authentication.servic
   styleUrls: ['./albums.component.css'],
 })
 export class AlbumsComponent implements OnInit {
-  @ViewChild('container', { static: true }) container: ElementRef;
+  @ViewChild('container', {static: true}) container: ElementRef;
   public size: number;
   public savedSearch = {
     name: '',
-    searchQuery: { type: SearchQueryTypes.any_text, text: '' } as TextSearch,
+    searchQuery: {type: SearchQueryTypes.any_text, text: ''} as TextSearch,
   };
   private modalRef: BsModalRef;
 
   constructor(
-    public albumsService: AlbumsService,
-    private modalService: BsModalService,
-    public authenticationService: AuthenticationService
+      public albumsService: AlbumsService,
+      private modalService: BsModalService,
+      public authenticationService: AuthenticationService,
+      private piTitleService: PiTitleService
   ) {
     this.albumsService.getAlbums().catch(console.error);
   }
 
   ngOnInit(): void {
+    this.piTitleService.setTitle($localize`Albums`);
     this.updateSize();
   }
 
@@ -46,7 +40,7 @@ export class AlbumsComponent implements OnInit {
   }
 
   public async openModal(template: TemplateRef<any>): Promise<void> {
-    this.modalRef = this.modalService.show(template, { class: 'modal-lg' });
+    this.modalRef = this.modalService.show(template, {class: 'modal-lg'});
     document.body.style.paddingRight = '0px';
   }
 
@@ -57,8 +51,8 @@ export class AlbumsComponent implements OnInit {
 
   async saveSearch(): Promise<void> {
     await this.albumsService.addSavedSearch(
-      this.savedSearch.name,
-      this.savedSearch.searchQuery
+        this.savedSearch.name,
+        this.savedSearch.searchQuery
     );
     this.hideModal();
   }

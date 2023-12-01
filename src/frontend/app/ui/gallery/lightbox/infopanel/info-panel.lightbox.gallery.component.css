@@ -1,5 +1,4 @@
 .content {
-  background-color: #F7F7F7;
   height: 100%;
   overflow-y: auto;
 }
@@ -7,22 +6,20 @@
 .row {
   margin-left: 0;
   margin-right: 0;
-  padding: 10px;
+  padding: 10px 16px 10px 16px;
 }
 
 .details-icon {
-  margin-top: .7rem;
   font-size: x-large;
 }
 
 .details-main {
-  font-size: x-large;
+  font-size: large;
 }
 
 .details-sub {
-  color: var(--bs-gray-700);
   padding: 0;
-  font-size: 0.875rem;
+  font-size: small;
 }
 
 .details-sub div {
@@ -51,7 +48,8 @@
 
 
 .keywords a, a.dir-link {
-  color: var(--bs-gray-900);
+  --bs-text-opacity: 1;
+  color: rgba(var(--bs-body-color-rgb), var(--bs-text-opacity)) !important;
 }
 
 .keywords a:hover, a.dir-link:hover {

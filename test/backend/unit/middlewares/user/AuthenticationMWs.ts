@@ -20,7 +20,7 @@ describe('Authentication middleware', () => {
   });
 
   describe('authenticate', () => {
-    it('should call next on authenticated', (done: () => void) => {
+    it('should call next on authenticated', (done: (err?: any) => void) => {
       const req: any = {
         session: {
           user: 'A user'
@@ -30,14 +30,18 @@ describe('Authentication middleware', () => {
         params: {}
       };
       const next: any = (err: ErrorDTO) => {
-        expect(err).to.be.undefined;
-        done();
+        try {
+          expect(err).to.be.undefined;
+          done();
+        } catch (err) {
+          done(err);
+        }
       };
       AuthenticationMWs.authenticate(req, null, next);
 
     });
 
-    it('should call next with error on not authenticated', (done: () => void) => {
+    it('should call next with error on not authenticated', (done: (err?: any) => void) => {
       const req: any = {
         session: {},
         sessionOptions: {},
@@ -46,9 +50,13 @@ describe('Authentication middleware', () => {
       };
       Config.Users.authenticationRequired = true;
       const next: any = (err: ErrorDTO) => {
-        expect(err).not.to.be.undefined;
-        expect(err.code).to.be.eql(ErrorCodes.NOT_AUTHENTICATED);
-        done();
+        try {
+          expect(err).not.to.be.undefined;
+          expect(err.code).to.be.eql(ErrorCodes.NOT_AUTHENTICATED);
+          done();
+        } catch (err) {
+          done(err);
+        }
       };
       AuthenticationMWs.authenticate(req, {
         status: () => {
@@ -114,22 +122,26 @@ describe('Authentication middleware', () => {
 
   describe('inverseAuthenticate', () => {
 
-    it('should call next with error on authenticated', (done: () => void) => {
+    it('should call next with error on authenticated', (done: (err?: any) => void) => {
       const req: any = {
         session: {},
         sessionOptions: {},
       };
       const res: any = {};
       const next: any = (err: ErrorDTO) => {
-        expect(err).to.be.undefined;
-        done();
+        try {
+          expect(err).to.be.undefined;
+          done();
+        } catch (err) {
+          done(err);
+        }
       };
       AuthenticationMWs.inverseAuthenticate(req, null, next);
 
     });
 
 
-    it('should call next error on authenticated', (done: () => void) => {
+    it('should call next error on authenticated', (done: (err?: any) => void) => {
       const req: any = {
         session: {
           user: 'A user'
@@ -147,7 +159,7 @@ describe('Authentication middleware', () => {
   });
 
   describe('authorise', () => {
-    it('should call next on authorised', (done: () => void) => {
+    it('should call next on authorised', (done: (err?: any) => void) => {
       const req: any = {
         session: {
           user: {
@@ -157,14 +169,18 @@ describe('Authentication middleware', () => {
         sessionOptions: {}
       };
       const next: any = (err: ErrorDTO) => {
-        expect(err).to.be.undefined;
-        done();
+        try {
+          expect(err).to.be.undefined;
+          done();
+        } catch (err) {
+          done(err);
+        }
       };
       AuthenticationMWs.authorise(UserRoles.LimitedGuest)(req, null, next);
 
     });
 
-    it('should call next with error on not authorised', (done: () => void) => {
+    it('should call next with error on not authorised', (done: (err?: any) => void) => {
       const req: any = {
         session: {
           user: {
@@ -189,7 +205,7 @@ describe('Authentication middleware', () => {
     });
 
     describe('should call input ErrorDTO next on missing...', () => {
-      it('body', (done: () => void) => {
+      it('body', (done: (err?: any) => void) => {
         const req: any = {
           query: {},
           params: {}
@@ -203,16 +219,20 @@ describe('Authentication middleware', () => {
 
       });
 
-      it('loginCredential', (done: () => void) => {
+      it('loginCredential', (done: (err?: any) => void) => {
         const req: any = {
           body: {},
           query: {},
           params: {}
         };
         const next: any = (err: ErrorDTO) => {
-          expect(err).not.to.be.undefined;
-          expect(err.code).to.be.eql(ErrorCodes.INPUT_ERROR);
-          done();
+          try {
+            expect(err).not.to.be.undefined;
+            expect(err.code).to.be.eql(ErrorCodes.INPUT_ERROR);
+            done();
+          } catch (err) {
+            done(err);
+          }
         };
         AuthenticationMWs.login(req, null, next);
 
@@ -220,16 +240,20 @@ describe('Authentication middleware', () => {
       });
 
 
-      it('loginCredential content', (done: () => void) => {
+      it('loginCredential content', (done: (err?: any) => void) => {
         const req: any = {
           body: {loginCredential: {}},
           query: {},
           params: {}
         };
         const next: any = (err: ErrorDTO) => {
-          expect(err).not.to.be.undefined;
-          expect(err.code).to.be.eql(ErrorCodes.INPUT_ERROR);
-          done();
+          try {
+            expect(err).not.to.be.undefined;
+            expect(err.code).to.be.eql(ErrorCodes.INPUT_ERROR);
+            done();
+          } catch (err) {
+            done(err);
+          }
         };
         AuthenticationMWs.login(req, null, next);
 
@@ -237,7 +261,7 @@ describe('Authentication middleware', () => {
       });
 
     });
-    it('should call next with error on not finding user', (done: () => void) => {
+    it('should call next with error on not finding user', (done: (err?: any) => void) => {
       const req: any = {
         body: {
           loginCredential: {
@@ -249,9 +273,13 @@ describe('Authentication middleware', () => {
         params: {}
       };
       const next: any = (err: ErrorDTO) => {
-        expect(err).not.to.be.undefined;
-        expect(err.code).to.be.eql(ErrorCodes.CREDENTIAL_NOT_FOUND);
-        done();
+        try {
+          expect(err).not.to.be.undefined;
+          expect(err.code).to.be.eql(ErrorCodes.CREDENTIAL_NOT_FOUND);
+          done();
+        } catch (err) {
+          done(err);
+        }
       };
       ObjectManagers.getInstance().UserManager = {
         findOne: (_: never): Promise<UserDTO> => {
@@ -263,7 +291,7 @@ describe('Authentication middleware', () => {
 
     });
 
-    it('should call next with user on the session on  finding user', (done: () => void) => {
+    it('should call next with user on the session on  finding user', (done: (err?: any) => void) => {
       const req: any = {
         session: {},
         body: {
@@ -293,7 +321,7 @@ describe('Authentication middleware', () => {
 
 
   describe('logout', () => {
-    it('should call next on logout', (done: () => void) => {
+    it('should call next on logout', (done: (err?: any) => void) => {
       const req: any = {
         session: {
           user: {
@@ -302,9 +330,13 @@ describe('Authentication middleware', () => {
         }
       };
       const next: any = (err: ErrorDTO) => {
-        expect(err).to.be.undefined;
-        expect(req.user).to.be.undefined;
-        done();
+        try {
+          expect(err).to.be.undefined;
+          expect(req.user).to.be.undefined;
+          done();
+        } catch (err) {
+          done(err);
+        }
       };
       AuthenticationMWs.logout(req, null, next);
 

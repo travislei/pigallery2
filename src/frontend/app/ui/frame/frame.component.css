@@ -1,28 +1,31 @@
-nav {
-  z-index: 999;
-}
-
-.navbar {
+.navbar-container {
+  z-index: 1040;
   margin-bottom: 20px;
+  position: absolute;
+  width: 100%;
+  box-shadow: 0 0.125rem 0.25rem rgb(0 0 0 / 30%)
 }
 
-ng2-slim-loading-bar {
-  /* display: block; */
-  z-index: 999999;
-  position: fixed;
+.auto-hide-navbar {
+  position: sticky;
   top: 0;
-  left: 0;
-  width: 100%;
+  transform: translateY(0);
 }
 
-.container {
-  width: 100%;
+.navbar-keep-top {
+  position: relative;
+  transform: translateY(0);
+  transition: transform 0s;
+  box-shadow: none;
 }
 
-.admin-link {
-  padding-bottom: 0;
-  padding-left: 0;
-  font-size: 18px;
+.hide-navbar {
+  transform: translateY(-100%);
+
+}
+
+.animate-navbar {
+  transition: transform 0.3s ease-in-out;
 }
 
 .divider-vertical:first-child {
@@ -39,47 +42,44 @@ ng2-slim-loading-bar {
   border-left-color: #3d3d3d;
 }
 
-@media (max-width: 767px) {
-  .navbar-collapse .nav > .divider-vertical {
-    display: none;
-  }
-
-  .navbar-text {
-    margin-left: 0;
-  }
-}
-
-@media (min-width: 767px) {
-  .navbar-text {
-    margin-left: 0;
-  }
-}
-
 .navbar-badge {
   border-radius: 1rem !important;
   margin-left: -10px;
 }
 
-app-language {
-  display: block;
-}
 
-.navbar-expand .navbar-nav .nav-link {
-  padding-right: 1.0rem;
-  padding-left: 1.0rem;
-}
-
-
-a.dropdown-item, button.dropdown-item {
+a.dropdown-item, button.dropdown-item, div.dropdown-item {
   padding: 0.3rem 1.0rem 0.3rem 0.8rem;
 }
 
-a.dropdown-item span, button.dropdown-item span {
-  padding-right: 0.8rem;
+a.dropdown-item ng-icon, button.dropdown-item ng-icon, div.dropdown-item ng-icon {
+  margin-right: 0.5rem;
+}
+
+ng-icon {
+  vertical-align: text-top;
+}
+
+.btn-scroll-up ng-icon {
+  font-size: x-large;
+  margin: -0.2em;
 }
 
 
 a.dropdown-item span.badge, button.dropdown-item span.badge {
-  padding: 0.25em 0.37rem 0.25rem 0;
   margin-left: -0.8rem;
+}
+
+.btn-scroll-up {
+  position: fixed;
+  width: 3em;
+  height: 3em;
+  right: -3em;
+  bottom: 3em;
+  transition: 0.3s right;
+  z-index: 999;
+}
+
+.show-btn-scroll-up {
+  right: 1em;
 }

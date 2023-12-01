@@ -1,5 +1,5 @@
-import { Config } from '../common/config/private/Config';
-import { LogLevel } from '../common/config/private/PrivateConfig';
+import {Config} from '../common/config/private/Config';
+import {LogLevel} from '../common/config/private/PrivateConfig';
 
 export type logFN = (...args: (string | number)[]) => void;
 
@@ -10,6 +10,38 @@ if (forcedDebug === true) {
     'NODE_ENV environmental variable is set to debug, forcing all logs to print'
   );
 }
+
+export type LoggerFunction = (...args: (string | number)[]) => void;
+
+export interface ILogger {
+  silly: LoggerFunction;
+  debug: LoggerFunction;
+  verbose: LoggerFunction;
+  info: LoggerFunction;
+  warn: LoggerFunction;
+  error: LoggerFunction;
+}
+
+export const createLoggerWrapper = (TAG: string): ILogger => ({
+  silly: (...args: (string | number)[]) => {
+    Logger.silly(TAG, ...args);
+  },
+  debug: (...args: (string | number)[]) => {
+    Logger.debug(TAG, ...args);
+  },
+  verbose: (...args: (string | number)[]) => {
+    Logger.verbose(TAG, ...args);
+  },
+  info: (...args: (string | number)[]) => {
+    Logger.info(TAG, ...args);
+  },
+  warn: (...args: (string | number)[]) => {
+    Logger.warn(TAG, ...args);
+  },
+  error: (...args: (string | number)[]) => {
+    Logger.error(TAG, ...args);
+  }
+});
 
 export class Logger {
   public static silly(...args: (string | number)[]): void {

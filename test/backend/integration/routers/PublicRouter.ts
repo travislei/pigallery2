@@ -34,7 +34,6 @@ describe('PublicRouter', () => {
   const setUp = async () => {
     await fs.promises.rm(tempDir, {recursive: true, force: true});
     Config.Users.authenticationRequired = true;
-    Config.Server.Threading.enabled = false;
     Config.Sharing.enabled = true;
     Config.Database.type = DatabaseType.sqlite;
     Config.Database.dbFolder = tempDir;
@@ -42,7 +41,7 @@ describe('PublicRouter', () => {
     server = new Server();
     await server.onStarted.wait();
 
-    await ObjectManagers.InitSQLManagers();
+    await ObjectManagers.getInstance().init();
     await ObjectManagers.getInstance().UserManager.createUser(Utils.clone(testUser));
     await SQLConnection.close();
   };
@@ -72,7 +71,7 @@ describe('PublicRouter', () => {
     afterEach(tearDown);
 
     const fistLoad = async (srv: Server, sharingKey: string): Promise<any> => {
-      return (chai.request(srv.App) as SuperAgentStatic)
+      return (chai.request(srv.Server) as SuperAgentStatic)
         .get('/share/' + sharingKey);
     };
 

@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import {Connection, createConnection, DataSourceOptions, getConnection,} from 'typeorm';
+import {Connection, createConnection, DataSourceOptions, getConnection, LoggerOptions,} from 'typeorm';
 import {UserEntity} from './enitites/UserEntity';
 import {UserRoles} from '../../../common/entities/UserDTO';
 import {PhotoEntity} from './enitites/PhotoEntity';
@@ -22,35 +22,52 @@ import {AlbumBaseEntity} from './enitites/album/AlbumBaseEntity';
 import {SavedSearchEntity} from './enitites/album/SavedSearchEntity';
 import {NotificationManager} from '../NotifocationManager';
 import {PersonJunctionTable} from './enitites/PersonJunctionTable';
+import {MDFileEntity} from './enitites/MDFileEntity';
 
 const LOG_TAG = '[SQLConnection]';
 
+type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+
 export class SQLConnection {
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  public static getEntries(): Function[] {
+    return this.entries;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  public static async addEntries(tables: Function[]) {
+    if (!tables?.length) {
+      return;
+    }
+    await this.close();
+    this.entries = Utils.getUnique(this.entries.concat(tables));
+    await (await this.getConnection()).synchronize();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  private static entries: Function[] = [
+    UserEntity,
+    FileEntity,
+    MDFileEntity,
+    PersonJunctionTable,
+    PersonEntry,
+    MediaEntity,
+    PhotoEntity,
+    VideoEntity,
+    DirectoryEntity,
+    SharingEntity,
+    AlbumBaseEntity,
+    SavedSearchEntity,
+    VersionEntity,
+  ];
+
   private static connection: Connection = null;
 
 
   public static async getConnection(): Promise<Connection> {
     if (this.connection == null) {
-      const options: any = this.getDriver(Config.Database);
-      //   options.name = 'main';
-      options.entities = [
-        UserEntity,
-        FileEntity,
-        PersonJunctionTable,
-        PersonEntry,
-        MediaEntity,
-        PhotoEntity,
-        VideoEntity,
-        DirectoryEntity,
-        SharingEntity,
-        AlbumBaseEntity,
-        SavedSearchEntity,
-        VersionEntity,
-      ];
-      options.synchronize = false;
-      if (Config.Server.Log.sqlLevel !== SQLLogLevel.none) {
-        options.logging = SQLLogLevel[Config.Server.Log.sqlLevel];
-      }
+      const options = this.getDriver(Config.Database);
+
       Logger.debug(
         LOG_TAG,
         'Creating connection: ' + DatabaseType[Config.Database.type],
@@ -71,26 +88,8 @@ export class SQLConnection {
       // eslint-disable-next-line no-empty
     } catch (err) {
     }
-    const options: any = this.getDriver(config);
+    const options = this.getDriver(config);
     options.name = 'test';
-    options.entities = [
-      UserEntity,
-      FileEntity,
-      PersonJunctionTable,
-      PersonEntry,
-      MediaEntity,
-      PhotoEntity,
-      VideoEntity,
-      DirectoryEntity,
-      SharingEntity,
-      AlbumBaseEntity,
-      SavedSearchEntity,
-      VersionEntity,
-    ];
-    options.synchronize = false;
-    if (Config.Server.Log.sqlLevel !== SQLLogLevel.none) {
-      options.logging = SQLLogLevel[Config.Server.Log.sqlLevel];
-    }
     const conn = await this.createConnection(options);
     await SQLConnection.schemeSync(conn);
     await conn.close();
@@ -125,7 +124,8 @@ export class SQLConnection {
 
     // Add dummy Admin to the db
     const admins = await userRepository.findBy({role: UserRoles.Admin});
-    if (admins.length === 0) {
+    const devs = await userRepository.findBy({role: UserRoles.Developer});
+    if (admins.length === 0 && devs.length === 0) {
       const a = new UserEntity();
       a.name = 'admin';
       a.password = PasswordHelper.cryptPassword('admin');
@@ -160,7 +160,34 @@ export class SQLConnection {
     }
   }
 
-  public static getSQLiteDB(config: ServerDataBaseConfig): any {
+  private static FIXED_SQL_TABLE = [
+    'sqlite_sequence'
+  ];
+
+  /**
+   * Clears up the DB from unused tables. use it when the entities list are up-to-date (extensions won't add any new)
+   */
+  public static async removeUnusedTables() {
+    const conn = await this.getConnection();
+    const validTableNames = this.entries.map(e => conn.getRepository(e).metadata.tableName).concat(this.FIXED_SQL_TABLE);
+    let currentTables: string[];
+
+    if (Config.Database.type === DatabaseType.sqlite) {
+      currentTables = (await conn.query('SELECT name FROM sqlite_master  WHERE type=\'table\''))
+        .map((r: { name: string }) => r.name);
+    } else {
+      currentTables = (await conn.query(`SELECT table_name FROM information_schema.tables ` +
+        `WHERE table_schema = '${Config.Database.mysql.database}'`))
+        .map((r: { table_name: string }) => r.table_name);
+    }
+
+    const tableToDrop = currentTables.filter(ct => !validTableNames.includes(ct));
+    for (let i = 0; i < tableToDrop.length; ++i) {
+      await conn.query('DROP TABLE ' + tableToDrop[i]);
+    }
+  }
+
+  public static getSQLiteDB(config: ServerDataBaseConfig): string {
     return path.join(ProjectPath.getAbsolutePath(config.dbFolder), 'sqlite.db');
   }
 
@@ -232,8 +259,9 @@ export class SQLConnection {
     }
   }
 
-  private static getDriver(config: ServerDataBaseConfig): DataSourceOptions {
-    let driver: DataSourceOptions = null;
+
+  private static getDriver(config: ServerDataBaseConfig): Writeable<DataSourceOptions> {
+    let driver: Writeable<DataSourceOptions>;
     if (config.type === DatabaseType.mysql) {
       driver = {
         type: 'mysql',
@@ -252,6 +280,11 @@ export class SQLConnection {
           config.sqlite.DBFileName
         ),
       };
+    }
+    driver.entities = this.entries;
+    driver.synchronize = false;
+    if (Config.Server.Log.sqlLevel !== SQLLogLevel.none) {
+      driver.logging = SQLLogLevel[Config.Server.Log.sqlLevel] as LoggerOptions;
     }
     return driver;
   }

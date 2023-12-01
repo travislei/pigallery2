@@ -35,7 +35,6 @@ describe('UserRouter', () => {
   let server: Server;
   const setUp = async () => {
     await fs.promises.rm(tempDir, {recursive: true, force: true});
-    Config.Server.Threading.enabled = false;
     Config.Database.type = DatabaseType.sqlite;
     Config.Database.dbFolder = tempDir;
     ProjectPath.reset();
@@ -43,7 +42,7 @@ describe('UserRouter', () => {
 
     server = new Server();
     await server.onStarted.wait();
-    await ObjectManagers.InitSQLManagers();
+    await ObjectManagers.getInstance().init();
     await ObjectManagers.getInstance().UserManager.createUser(Utils.clone(testUser));
     await SQLConnection.close();
   };
@@ -63,7 +62,7 @@ describe('UserRouter', () => {
   };
 
   const login = async (srv: Server): Promise<any> => {
-    const result = await (chai.request(srv.App) as SuperAgentStatic)
+    const result = await (chai.request(srv.Server) as SuperAgentStatic)
       .post(Config.Server.apiPath + '/user/login')
       .send({
         loginCredential: {
@@ -88,7 +87,7 @@ describe('UserRouter', () => {
     });
     it('it skip login', async () => {
       Config.Users.authenticationRequired = false;
-      const result = await chai.request(server.App)
+      const result = await chai.request(server.Server)
         .post(Config.Server.apiPath + '/user/login');
 
       result.res.should.have.status(404);
@@ -106,7 +105,7 @@ describe('UserRouter', () => {
 
       const loginRes = await login(server);
 
-      const result = await chai.request(server.App)
+      const result = await chai.request(server.Server)
         .get(Config.Server.apiPath + '/user/me')
         .set('Cookie', loginRes.res.headers['set-cookie'])
         .set('CSRF-Token', loginRes.body.result.csrfToken);
@@ -117,7 +116,7 @@ describe('UserRouter', () => {
     it('it should not authenticate', async () => {
       Config.Users.authenticationRequired = true;
 
-      const result = await chai.request(server.App)
+      const result = await chai.request(server.Server)
         .get(Config.Server.apiPath + '/user/me');
 
       result.res.should.have.status(401);
@@ -134,7 +133,7 @@ describe('UserRouter', () => {
       const loginRes = await login(server);
       const q: Record<string, string> = {};
       q[QueryParams.gallery.sharingKey_query] = sharingKey;
-      const result = await chai.request(server.App)
+      const result = await chai.request(server.Server)
         .get(Config.Server.apiPath + '/user/me?' + QueryParams.gallery.sharingKey_query + '=' + sharingKey)
         .set('Cookie', loginRes.res.headers['set-cookie'])
         .set('CSRF-Token', loginRes.body.result.csrfToken);
@@ -153,7 +152,7 @@ describe('UserRouter', () => {
 
       const q: Record<string, string> = {};
       q[QueryParams.gallery.sharingKey_query] = sharing.sharingKey;
-      const result = await chai.request(server.App)
+      const result = await chai.request(server.Server)
         .get(Config.Server.apiPath + '/user/me?' + QueryParams.gallery.sharingKey_query + '=' + sharing.sharingKey);
 
       checkUserResult(result, RouteTestingHelper.getExpectedSharingUser(sharing));
@@ -168,7 +167,7 @@ describe('UserRouter', () => {
 
       const q: Record<string, string> = {};
       q[QueryParams.gallery.sharingKey_query] = sharing.sharingKey;
-      const result = await chai.request(server.App)
+      const result = await chai.request(server.Server)
         .get(Config.Server.apiPath + '/user/me?' + QueryParams.gallery.sharingKey_query + '=' + sharing.sharingKey);
 
       result.should.have.status(401);
@@ -180,7 +179,7 @@ describe('UserRouter', () => {
     it('it should authenticate as guest', async () => {
       Config.Users.authenticationRequired = false;
 
-      const result = await chai.request(server.App)
+      const result = await chai.request(server.Server)
         .get(Config.Server.apiPath + '/user/me');
 
       const expectedGuestUser = {

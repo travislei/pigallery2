@@ -1,12 +1,12 @@
-import { DirectoryPathDTO } from './DirectoryDTO';
-import { MediaDimension, MediaDTO, MediaMetadata } from './MediaDTO';
+import {DirectoryPathDTO} from './DirectoryDTO';
+import {MediaDimension, MediaDTO, MediaMetadata} from './MediaDTO';
 
-export interface PreviewPhotoDTO extends MediaDTO {
+export interface CoverPhotoDTO extends MediaDTO {
   name: string;
   directory: DirectoryPathDTO;
 }
 
-export interface PhotoDTO extends PreviewPhotoDTO, MediaDTO {
+export interface PhotoDTO extends CoverPhotoDTO, MediaDTO {
   id: number;
   name: string;
   directory: DirectoryPathDTO;
@@ -15,10 +15,10 @@ export interface PhotoDTO extends PreviewPhotoDTO, MediaDTO {
 }
 
 export interface FaceRegionBox {
-  width: number;
-  height: number;
-  left: number;
-  top: number;
+  width: number; // in pixels
+  height: number; // in pixels
+  left: number; // in pixels
+  top: number; // in pixels
 }
 
 export interface FaceRegion {
@@ -27,9 +27,7 @@ export interface FaceRegion {
 }
 
 export interface PhotoMetadata extends MediaMetadata {
-  rating?: 0 | 1 | 2 | 3 | 4 | 5;
   caption?: string;
-  keywords?: string[];
   cameraData?: CameraMetadata;
   positionData?: PositionMetaData;
   size: MediaDimension;

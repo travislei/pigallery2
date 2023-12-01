@@ -8,9 +8,6 @@
   cursor: pointer;
 }
 
-.oi {
-  font-size: 59pt;
-}
 
 #map {
   width: 100%;
@@ -24,4 +21,6 @@
   background-color: transparent;
   opacity: 0.8;
   cursor: pointer;
+  position: absolute;
+  transform: translateY(-100%);
 }

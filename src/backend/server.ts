@@ -10,18 +10,17 @@ import * as locale from 'locale';
 import {ObjectManagers} from './model/ObjectManagers';
 import {Logger} from './Logger';
 import {LoggerRouter} from './routes/LoggerRouter';
-import {DiskManager} from './model/DiskManger';
 import {ConfigDiagnostics} from './model/diagnostics/ConfigDiagnostics';
 import {Localizations} from './model/Localizations';
 import {CookieNames} from '../common/CookieNames';
 import {Router} from './routes/Router';
-import {PhotoProcessing} from './model/fileprocessing/PhotoProcessing';
+import {PhotoProcessing} from './model/fileaccess/fileprocessing/PhotoProcessing';
 import * as _csrf from 'csurf';
 import {Event} from '../common/event/Event';
 import {QueryParams} from '../common/QueryParams';
 import {ConfigClassBuilder} from 'typeconfig/node';
 import {ConfigClassOptions} from 'typeconfig/src/decorators/class/IConfigClass';
-import {DatabaseType, ServerConfig} from '../common/config/private/PrivateConfig';
+import {ServerConfig} from '../common/config/private/PrivateConfig';
 import {unless} from 'express-unless';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -33,8 +32,17 @@ const LOG_TAG = '[server]';
 
 export class Server {
   public onStarted = new Event<void>();
-  private app: express.Express;
+  public app: express.Express;
   private server: HttpServer;
+
+  static instance: Server = null;
+
+  public static getInstance(): Server {
+    if (!this.instance) {
+      this.instance = new Server();
+    }
+    return this.instance;
+  }
 
   constructor() {
     if (!(process.env.NODE_ENV === 'production')) {
@@ -46,11 +54,16 @@ export class Server {
     this.init().catch(console.error);
   }
 
-  get App(): any {
+  get Server(): HttpServer {
     return this.server;
   }
 
   async init(): Promise<void> {
+
+    this.app = express();
+    LoggerRouter.route(this.app);
+    this.app.set('view engine', 'ejs');
+
     Logger.info(LOG_TAG, 'running diagnostics...');
     await ConfigDiagnostics.runDiagnostics();
     Logger.verbose(
@@ -62,13 +75,14 @@ export class Server {
       ).configPath +
       ':'
     );
-    Logger.verbose(LOG_TAG, JSON.stringify(Config.toJSON({attachDescription: false}), null, '\t'));
+    Logger.verbose(LOG_TAG, JSON.stringify(Config.toJSON({attachDescription: false}), (k, v) => {
+      const MAX_LENGTH = 80;
+      if (typeof v === 'string' && v.length > MAX_LENGTH) {
+        v = v.slice(0, MAX_LENGTH - 3) + '...';
+      }
+      return v;
+    }, 2));
 
-    this.app = express();
-
-    LoggerRouter.route(this.app);
-
-    this.app.set('view engine', 'ejs');
 
     /**
      * Session above all
@@ -112,12 +126,11 @@ export class Server {
       _csrf({ignoreMethods: ['GET']})
     );
 
-    DiskManager.init();
     PhotoProcessing.init();
     Localizations.init();
 
     this.app.use(locale(Config.Server.languages, 'en'));
-    await ObjectManagers.InitSQLManagers();
+    await ObjectManagers.getInstance().init();
 
     Router.route(this.app);
 
@@ -131,6 +144,15 @@ export class Server {
     this.server.listen(Config.Server.port, Config.Server.host);
     this.server.on('error', this.onError);
     this.server.on('listening', this.onListening);
+    this.server.on('close', this.onClose);
+
+    // Sigterm handler
+    process.on('SIGTERM', () => {
+      Logger.info(LOG_TAG, 'SIGTERM signal received');
+      this.server.close(() => {
+        process.exit(0);
+      });
+    });
 
     this.onStarted.trigger();
   }
@@ -169,6 +191,13 @@ export class Server {
     const bind =
       typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
     Logger.info(LOG_TAG, 'Listening on ' + bind);
+  };
+
+  /**
+   * Event listener for HTTP server "close" event.
+   */
+  private onClose = () => {
+    Logger.info(LOG_TAG, 'Closed http server');
   };
 }
 

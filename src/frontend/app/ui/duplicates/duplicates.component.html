@@ -13,17 +13,17 @@
         <div *ngFor="let pairs of group.duplicates" class="card">
           <div class="card-body">
             <a *ngFor="let media of pairs.media"
-               class="row"
+               class="row text-body rounded-2 p-2"
                [routerLink]="['/gallery', getDirectoryPath(media.directory)]"
                [queryParams]="queryService.getParams()">
-              <app-duplicates-photo class="col-1" [media]="media"></app-duplicates-photo>
-              <div class="col-6">
+              <app-duplicates-photo class="col-1 align-self-center" [media]="media"></app-duplicates-photo>
+              <div class="col-6 align-self-center">
                 /{{getDirectoryPath(media.directory)}}/<strong>{{media.name}}</strong>
               </div>
-              <div class="col-2">
+              <div class="col-2 align-self-center">
                 {{media.metadata.fileSize | fileSize}}
               </div>
-              <div class="col-3" [title]="media.metadata.creationDate">
+              <div class="col-3 align-self-center" [title]="media.metadata.creationDate">
                 {{media.metadata.creationDate | date}}, {{media.metadata.creationDate | date:'mediumTime'}}
               </div>
             </a>

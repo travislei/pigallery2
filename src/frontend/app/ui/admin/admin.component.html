@@ -1,15 +1,4 @@
-<ng-template #popTemplate>
-  <span i18n>Application version</span>: v{{(settingsService.settings | async).Environment.appVersion}}
-  <ng-container *ngIf="(settingsService.settings | async).Environment.buildTime">
-    <br/>
-    <span i18n>Built at</span>: {{(settingsService.settings | async).Environment.buildTime | date:'medium' }}
-  </ng-container>
-  <ng-container *ngIf="(settingsService.settings | async).Environment.buildCommitHash">
-    <br/>
-    <span i18n>Git commit</span>: {{(settingsService.settings | async).Environment.buildCommitHash}}
-  </ng-container>
-</ng-template>
-<app-frame>
+<app-frame #frame>
   <div body class="container-fluid">
 
     <div class="card mb-4" *ngIf="notificationService.countedNotifications.length>0">
@@ -47,26 +36,50 @@
           </a>
         </div>
         <div class="mb-1">
-          <label class="control-label align-self-end me-2" for="config-priority" i18n>Mode</label>
-          <select class="form-select d-inline-block w-auto"
-                  aria-label="Configuration priority"
-                  [(ngModel)]="settingsService.configPriority"
-                  (ngModelChange)="settingsService.configPriorityChanged()"
-                  [class.bg-warning]="settingsService.configPriority === ConfigPriority.advanced"
-                  [class.bg-danger]="settingsService.configPriority === ConfigPriority.underTheHood"
-                  id="config-priority">
-            <option class="bg-white"
-                    *ngFor="let cp of configPriorities"
-                    [ngValue]="cp.key">{{cp.value}}
-            </option>
-          </select>
+          <label class="control-label align-self-end me-2" for="config-priority" i18n>Mode:</label>
+          <div class="btn-group" dropdown #dropdown="bs-dropdown" placement="bottom right">
+            <button type="button"
+                    dropdownToggle
+                    id="config-priority"
+                    class="btn btn-danger dropdown-toggle"
+                    [class.btn-secondary]="settingsService.configPriority === ConfigPriority.basic"
+                    [class.btn-warning]="settingsService.configPriority === ConfigPriority.advanced"
+                    [class.btn-danger]="settingsService.configPriority === ConfigPriority.underTheHood"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              {{ConfigPriority[settingsService.configPriority] | stringifyEnum}}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right" *dropdownMenu>
+              <li *ngFor="let cp of configPriorities">
+                <button class="dropdown-item"
+                        (click)="settingsService.configPriority = cp.key; settingsService.configSetupChanged()">{{cp.value}}</button>
+              </li>
+            </ul>
+          </div>
+          <div class="ms-2 btn-group" dropdown #dropdown="bs-dropdown" placement="bottom right">
+            <button type="button"
+                    dropdownToggle
+                    id="config-style"
+                    class="btn dropdown-toggle"
+                    [class.btn-secondary]="settingsService.configStyle == ConfigStyle.full"
+                    [class.btn-primary]="settingsService.configStyle == ConfigStyle.compact"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              {{ConfigStyle[settingsService.configStyle] | stringifyEnum}}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right" *dropdownMenu>
+              <li *ngFor="let cp of configStyles">
+                <button class="dropdown-item"
+                        (click)="settingsService.configStyle = cp.key; settingsService.configSetupChanged()">{{cp.value}}</button>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="row mt-2">
-      <div class="col-md-2 ">
-        <nav class="nav flex-column sticky-top">
+      <div class="col-md-auto ">
+        <nav class="nav admin-menu flex-column sticky-top z-0 pb-2"
+             [style]="frame.shouldHideNavbar ? '' : 'top:'+(frame.navContainer.nativeElement.offsetHeight)+'px; max-height:calc(100vh - '+(frame.navContainer.nativeElement.offsetHeight)+'px)'">
           <div class="card">
             <div class="card-body text-md-start text-center align-content-md-start align-content-center">
               <h5 i18n="title of left card in settings page that contains settings contents" class="card-title">
@@ -74,16 +87,16 @@
               <div class="py-md-1 px-md-0"
                    *ngFor="let s of contents;"
                    [hidden]="!s.HasAvailableSettings">
-                <button class="btn btn-link nav-link text-start p-0"
+                <button class="btn btn-link nav-link text-start p-0 text-nowrap"
                         (click)="viewportScroller.scrollToAnchor(s.ConfigPath)"
                 >
-                  <span class="oi oi-{{s.icon}}"></span> {{s.Name}}
+                  <ng-icon [name]="s.icon"></ng-icon> {{s.Name}}
                 </button>
-                <button class="btn btn-link nav-link text-start ms-3 p-0"
+                <button class="btn btn-link nav-link text-start ms-3 p-0  text-nowrap"
                         *ngFor="let n of s.nestedConfigs;"
                         [hidden]="!n.visible()"
                         (click)="viewportScroller.scrollToAnchor(n.id)">
-                  <span class="oi oi-{{n.icon}}"></span>  {{n.name}}
+                  <ng-icon [name]="n.icon"></ng-icon> {{n.name}}
                 </button>
               </div>
             </div>
@@ -91,13 +104,12 @@
 
         </nav>
       </div>
-      <div class="col-md-10">
+      <div class="col-md">
         <app-settings-template
           *ngFor="let cp of configPaths"
           #setting
           #tmpl
           [ConfigPath]="cp"
-          [enableNesting]="cp=='Media'"
           [hidden]="!tmpl.HasAvailableSettings">
           <ng-container
             *ngIf="cp=='Indexing'">
@@ -122,3 +134,14 @@
 
   </div>
 </app-frame>
+<ng-template #popTemplate>
+  <span i18n>Application version</span>: v{{(settingsService.settings | async).Environment.appVersion}}
+  <ng-container *ngIf="(settingsService.settings | async).Environment.buildTime">
+    <br/>
+    <span i18n>Built at</span>: {{(settingsService.settings | async).Environment.buildTime | date:'medium' }}
+  </ng-container>
+  <ng-container *ngIf="(settingsService.settings | async).Environment.buildCommitHash">
+    <br/>
+    <span i18n>Git commit</span>: {{(settingsService.settings | async).Environment.buildCommitHash}}
+  </ng-container>
+</ng-template>

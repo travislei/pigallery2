@@ -1,5 +1,4 @@
-import {Component, OnDestroy, OnInit, QueryList, ViewChildren} from '@angular/core';
-import {forwardRef} from '../../../../../../node_modules/@angular/core';
+import {Component, forwardRef, OnDestroy, OnInit, QueryList, ViewChildren} from '@angular/core';
 import {ModalDirective} from 'ngx-bootstrap/modal';
 import {
   AfterJobTrigger,
@@ -10,8 +9,7 @@ import {
 } from '../../../../../common/entities/job/JobScheduleDTO';
 import {ScheduledJobsService} from '../scheduled-jobs.service';
 import {BackendtextService} from '../../../model/backendtext.service';
-import {SettingsService} from '../settings.service';
-import {ConfigTemplateEntry} from '../../../../../common/entities/job/JobDTO';
+import {ConfigStyle, SettingsService} from '../settings.service';
 import {JobProgressDTO, JobProgressStates} from '../../../../../common/entities/job/JobProgressDTO';
 import {
   AfterJobTriggerConfig,
@@ -20,13 +18,10 @@ import {
   PeriodicJobTriggerConfig,
   ScheduledJobTriggerConfig
 } from '../../../../../common/config/private/PrivateConfig';
-import {
-  ControlValueAccessor,
-  NG_VALIDATORS,
-  NG_VALUE_ACCESSOR,
-  ValidationErrors,
-  Validator
-} from '../../../../../../node_modules/@angular/forms';
+import {ControlValueAccessor, NG_VALIDATORS, NG_VALUE_ACCESSOR, ValidationErrors, Validator} from '@angular/forms';
+import {SortByTypes, SortingMethod} from '../../../../../common/entities/SortingMethods';
+import {MediaPickDTO} from '../../../../../common/entities/MediaPickDTO';
+import {SearchQueryTypes, TextSearch} from '../../../../../common/entities/SearchQueryDTO';
 
 @Component({
   selector: 'app-settings-workflow',
@@ -68,6 +63,9 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
     },
     allowParallelRun: false,
   };
+  public readonly ConfigStyle = ConfigStyle;
+  protected readonly SortByTypes = SortByTypes;
+
 
   error: string;
 
@@ -92,6 +90,8 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
       $localize`Sunday`,
       $localize`day`,
     ]; // 7
+
+
   }
 
   atTimeLocal(atTime: number): Date {
@@ -105,10 +105,10 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
   }
 
 
-
   ngOnInit(): void {
     this.jobsService.subscribeToProgress();
     this.jobsService.getAvailableJobs().catch(console.error);
+    this.jobsService.getAvailableMessengers().catch(console.error);
   }
 
   ngOnDestroy(): void {
@@ -129,7 +129,7 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
     schedule.config = schedule.config || {};
     if (job.ConfigTemplate) {
       job.ConfigTemplate.forEach(
-        (ct) => (schedule.config[ct.id] = ct.defaultValue)
+        (ct) => (schedule.config[ct.id] = ct.defaultValue as never)
       );
     }
   }
@@ -163,6 +163,17 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
     }
   }
 
+  setEmailArray(configElement: any, id: string, value: string): void {
+    value = value.replace(new RegExp(',', 'g'), ';');
+    value = value.replace(new RegExp(' ', 'g'), ';');
+    configElement[id] = value
+      .split(';').filter((i: string) => i != '');
+  }
+
+  getArray(configElement: Record<string, number[]>, id: string): string {
+    return configElement[id] && Array.isArray(configElement[id]) ? configElement[id].join('; ') : '';
+  }
+
   setNumberArray(configElement: any, id: string, value: string): void {
     value = value.replace(new RegExp(',', 'g'), ';');
     value = value.replace(new RegExp(' ', 'g'), ';');
@@ -172,9 +183,6 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
       .filter((i: number) => !isNaN(i) && i > 0);
   }
 
-  getNumberArray(configElement: Record<string, number[]>, id: string): string {
-    return configElement[id] ? configElement[id].join('; ') : '';
-  }
 
   public shouldIdent(curr: JobScheduleDTO, prev: JobScheduleDTO): boolean {
     return (
@@ -209,7 +217,7 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
     this.newSchedule.config = this.newSchedule.config || {};
     if (job.ConfigTemplate) {
       job.ConfigTemplate.forEach(
-        (ct) => (this.newSchedule.config[ct.id] = ct.defaultValue)
+        (ct) => (this.newSchedule.config[ct.id] = ct.defaultValue as never)
       );
     }
     this.jobModalQL.first.show();
@@ -275,6 +283,10 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
     // empty
   };
 
+  getJobDescription(jobName: string): string {
+    return this.backendTextService.getJobDescription(jobName);
+  }
+
   public writeValue(obj: JobScheduleConfig[]): void {
     this.schedules = obj;
   }
@@ -285,6 +297,28 @@ export class WorkflowComponent implements ControlValueAccessor, Validator, OnIni
 
   public registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
+  }
+
+
+  AsMediaPickDTOArray(configElement: string | number | string[] | number[] | MediaPickDTO[]): MediaPickDTO[] {
+    return configElement as MediaPickDTO[];
+  }
+
+  removeFromArray(configElement: any[], i: number): void {
+    configElement.splice(i, 1);
+  }
+
+  AddNewSorting(configElement: string | number | string[] | number[] | MediaPickDTO[] | SortingMethod[]): void {
+    (configElement as SortingMethod[]).push({method: SortByTypes.Date, ascending: true});
+  }
+
+  AddNewMediaPickDTO(configElement: string | number | string[] | number[] | MediaPickDTO[]): void {
+    (configElement as MediaPickDTO[]).push({
+      searchQuery: {type: SearchQueryTypes.any_text, text: ''} as TextSearch,
+      sortBy: [{method: SortByTypes.Rating, ascending: true},
+        {method: SortByTypes.PersonCount, ascending: true}],
+      pick: 5
+    });
   }
 
 }

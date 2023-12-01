@@ -48,6 +48,10 @@
   display: block;
 }
 
+.autocomplete-item span {
+  margin-left: -10px;
+}
+
 .autocomplete-item-selected {
   background-color: var(--bs-primary);
   color: #FFF;
@@ -55,12 +59,14 @@
 
 
 .search-text {
+  border-radius: inherit !important;
   z-index: 6;
   width: 100%;
   background: transparent;
 }
 
 .search-hint {
+  border-radius: inherit !important;
   left: 0;
   z-index: 1;
   width: 100%;
@@ -68,3 +74,6 @@
   margin-left: 0 !important;
 }
 
+ng-icon.insert-button ::ng-deep svg {
+  vertical-align: top;
+}

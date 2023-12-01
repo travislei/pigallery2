@@ -16,6 +16,9 @@ describe('Utils', () => {
     expect(Utils.concatUrls('abc/', '/cde/')).to.be.equal('abc/cde');
     expect(Utils.concatUrls('abc\\/', '/cde/')).to.be.equal('abc/cde');
     expect(Utils.concatUrls('abc\\/', '/cde/', 'fgh')).to.be.equal('abc/cde/fgh');
+    expect(Utils.concatUrls('abc\\/', '////cde/', 'fgh')).to.be.equal('abc/cde/fgh');
+    expect(Utils.concatUrls('http://abc\\/', '/cde/', 'fgh')).to.be.equal('http://abc/cde/fgh');
+    expect(Utils.concatUrls('https://abc\\/', '/cde/', 'fgh')).to.be.equal('https://abc/cde/fgh');
   });
 
   it('should find closest number', () => {

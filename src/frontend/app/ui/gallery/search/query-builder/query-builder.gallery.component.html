@@ -2,13 +2,14 @@
                                (ngModelChange)="validateRawSearchText()"
                                (search)="search.emit()"
                                [placeholder]="placeholder"
+                               class="rounded-2"
                                name="form-search-field">
 
 </app-gallery-search-field-base>
 <hr>
 <app-gallery-search-query-entry
   [(ngModel)]="searchQueryDTO"
-  (change)="onQueryChange()"
+  (change)="onChange()"
   (ngModelChange)="onChange()"
   name="search-root"
   (delete)="resetQuery()">
